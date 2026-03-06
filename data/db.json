@@ -1,0 +1,588 @@
+{
+  "coachName": "Coach Andi",
+  "contactEmail": "nfgc@example.com",
+  "darkMode": false,
+  "gymnasts": [
+    {
+      "id": "2s73hrccg",
+      "name": "Alex Florkowski",
+      "level": "Xcel Bronze",
+      "status": "Active",
+      "guardians": [
+        {
+          "id": "aya2ab46y",
+          "email": "andiflorkow@gmail.com"
+        }
+      ],
+      "notes": "",
+      "lastUpdatedAt": "2026-03-06T04:35:51.437Z",
+      "lastUpdatedBy": "Coach Andi"
+    },
+    {
+      "id": "pa3r9ovri",
+      "name": "Steven Calise",
+      "level": "Xcel Gold",
+      "status": "Active",
+      "guardians": [
+        {
+          "id": "hw9lakph6",
+          "email": "andiflorkow@gmail.com"
+        }
+      ],
+      "notes": "",
+      "lastUpdatedAt": "2026-03-06T04:17:18.817Z",
+      "lastUpdatedBy": "Coach Andi"
+    },
+    {
+      "id": "34d1z9kr3",
+      "name": "Andi Florkowski",
+      "level": "Xcel Silver",
+      "status": "Active",
+      "guardians": [
+        {
+          "id": "j5umuiszl",
+          "email": "andiflorkow@gmail.com"
+        }
+      ],
+      "notes": "",
+      "lastUpdatedAt": "2026-03-06T02:04:39.456Z",
+      "lastUpdatedBy": "Coach Andi"
+    },
+    {
+      "id": "d33luck6c",
+      "name": "Sample Gymnast",
+      "level": "4",
+      "status": "Active",
+      "guardians": [
+        {
+          "id": "f7mrf32s2",
+          "email": "parent@example.com",
+          "name": "Parent One"
+        }
+      ],
+      "notes": "",
+      "lastUpdatedAt": "2026-03-04T19:44:36.385Z",
+      "lastUpdatedBy": "Coach Andi"
+    }
+  ],
+  "reports": [
+    {
+      "id": "jv84v1cs1",
+      "gymnastId": "2s73hrccg",
+      "month": "2026-03",
+      "readiness": "ready",
+      "eventReports": {
+        "Vault": {
+          "event": "Vault",
+          "eventNotes": "",
+          "isComplete": true,
+          "lastUpdatedAt": "2026-03-06T04:35:56.273Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Handstand Flat Fall",
+              "status": "Competition Ready",
+              "notes": ""
+            }
+          ],
+          "completedAt": "2026-03-06T04:49:13.081Z",
+          "completedBy": "Coach Andi"
+        },
+        "Bars": {
+          "event": "Bars",
+          "eventNotes": "",
+          "isComplete": true,
+          "lastUpdatedAt": "2026-03-06T04:35:56.273Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Pullover",
+              "status": "Consistent",
+              "notes": ""
+            },
+            {
+              "name": "Back Hip Circle",
+              "status": "Competition Ready",
+              "notes": ""
+            }
+          ],
+          "completedAt": "2026-03-06T04:43:18.072Z",
+          "completedBy": "Coach Andi"
+        },
+        "Beam": {
+          "event": "Beam",
+          "eventNotes": "",
+          "isComplete": true,
+          "lastUpdatedAt": "2026-03-06T04:35:56.273Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [],
+          "completedAt": "2026-03-06T04:43:24.120Z",
+          "completedBy": "Coach Andi"
+        },
+        "Floor": {
+          "event": "Floor",
+          "eventNotes": "",
+          "isComplete": true,
+          "lastUpdatedAt": "2026-03-06T04:35:56.273Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [],
+          "completedAt": "2026-03-06T04:43:27.214Z",
+          "completedBy": "Coach Andi"
+        },
+        "Strength/Flexibility": {
+          "event": "Strength/Flexibility",
+          "eventNotes": "",
+          "isComplete": true,
+          "lastUpdatedAt": "2026-03-06T04:35:56.273Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [],
+          "completedAt": "2026-03-06T04:43:30.305Z",
+          "completedBy": "Coach Andi"
+        },
+        "Behavior": {
+          "event": "Behavior",
+          "eventNotes": "",
+          "isComplete": true,
+          "lastUpdatedAt": "2026-03-06T04:35:56.273Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [],
+          "completedAt": "2026-03-06T04:43:32.936Z",
+          "completedBy": "Coach Andi"
+        }
+      },
+      "behavior": {
+        "effort": 4,
+        "coachability": 5,
+        "focus": 4,
+        "respect": 5,
+        "comments": "Hard working. Needs to keep working on focus."
+      },
+      "goals": [
+        {
+          "id": "m5qp8zbo8",
+          "goal": "",
+          "progressNote": ""
+        }
+      ],
+      "attendance": "",
+      "injuries": "",
+      "reminders": "",
+      "generalNotes": "",
+      "pdfHistory": [
+        {
+          "id": "y9vbk68yn",
+          "month": "2026-03",
+          "path": "/uploads/reports/2s73hrccg/2026-03.pdf",
+          "createdAt": "2026-03-06T05:14:18.595Z"
+        },
+        {
+          "id": "gegyd0i1b",
+          "month": "2026-03",
+          "path": "/uploads/reports/2s73hrccg/2026-03.pdf",
+          "createdAt": "2026-03-06T04:53:10.605Z"
+        },
+        {
+          "id": "xdmmhhoae",
+          "month": "2026-03",
+          "path": "/uploads/reports/2s73hrccg/2026-03.pdf",
+          "createdAt": "2026-03-06T04:50:12.022Z"
+        }
+      ],
+      "sendHistory": [
+        {
+          "id": "efuq83hgc",
+          "sentAt": "2026-03-06T05:14:18.596Z",
+          "status": "sent",
+          "by": "Coach Andi"
+        },
+        {
+          "id": "v6iczwjav",
+          "sentAt": "2026-03-06T04:50:12.022Z",
+          "status": "sent",
+          "by": "Coach Andi"
+        },
+        {
+          "id": "f91p137mj",
+          "sentAt": "2026-03-06T04:49:59.534Z",
+          "status": "queued",
+          "by": "Coach Andi"
+        }
+      ],
+      "lastUpdatedAt": "2026-03-06T05:14:40.475Z",
+      "lastUpdatedBy": "Coach Andi"
+    },
+    {
+      "id": "vklchca7e",
+      "gymnastId": "34d1z9kr3",
+      "month": "2026-03",
+      "readiness": "ready",
+      "eventReports": {
+        "Vault": {
+          "event": "Vault",
+          "eventNotes": "Overall, great and right on track.",
+          "lastUpdatedAt": "2026-03-06T02:05:34.799Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [],
+          "isComplete": true,
+          "completedAt": "2026-03-06T04:03:47.960Z",
+          "completedBy": "Coach Andi"
+        },
+        "Bars": {
+          "event": "Bars",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-06T02:05:34.799Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Bars Skill 1",
+              "status": "Competition Ready",
+              "notes": ""
+            },
+            {
+              "name": "Bars Skill 2",
+              "status": "Working",
+              "notes": ""
+            }
+          ]
+        },
+        "Beam": {
+          "event": "Beam",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-06T02:05:34.799Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Beam Skill 1",
+              "status": "Not Started",
+              "notes": ""
+            },
+            {
+              "name": "Beam Skill 2",
+              "status": "Not Started",
+              "notes": "Struggling with a mental block."
+            }
+          ]
+        },
+        "Floor": {
+          "event": "Floor",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-06T02:05:34.799Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Floor Skill 1",
+              "status": "Working",
+              "notes": ""
+            },
+            {
+              "name": "Floor Skill 2",
+              "status": "Consistent",
+              "notes": ""
+            }
+          ]
+        },
+        "Strength/Flexibility": {
+          "event": "Strength/Flexibility",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-06T02:05:34.799Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Strength/Flexibility Skill 1",
+              "status": "Working",
+              "notes": "Not started."
+            },
+            {
+              "name": "Strength/Flexibility Skill 2",
+              "status": "Not Started",
+              "notes": "Not started."
+            }
+          ]
+        },
+        "Behavior": {
+          "event": "Behavior",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-06T02:05:34.799Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Behavior Skill 1",
+              "status": "Consistent",
+              "notes": ""
+            },
+            {
+              "name": "Behavior Skill 2",
+              "status": "Consistent",
+              "notes": ""
+            }
+          ]
+        }
+      },
+      "behavior": {
+        "effort": 3,
+        "coachability": 3,
+        "focus": 3,
+        "respect": 3,
+        "comments": ""
+      },
+      "goals": [
+        {
+          "id": "awzvoknsa",
+          "goal": "",
+          "progressNote": ""
+        }
+      ],
+      "attendance": "",
+      "injuries": "",
+      "reminders": "",
+      "generalNotes": "",
+      "pdfHistory": [
+        {
+          "id": "7pxeaq2bc",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T05:12:02.247Z"
+        },
+        {
+          "id": "6gnoeh0xr",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T03:48:09.807Z"
+        },
+        {
+          "id": "obwl8bx4l",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T03:47:44.500Z"
+        },
+        {
+          "id": "3mol4fw35",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T03:43:26.736Z"
+        },
+        {
+          "id": "t13rb5zdf",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T03:41:40.923Z"
+        },
+        {
+          "id": "ccqax5bx5",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T03:39:22.622Z"
+        },
+        {
+          "id": "pjlwjat89",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T03:17:21.059Z"
+        },
+        {
+          "id": "9xgtkaoia",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T03:15:35.242Z"
+        },
+        {
+          "id": "o3ahf8fit",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T03:10:05.649Z"
+        },
+        {
+          "id": "njw6bbwij",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T02:10:49.384Z"
+        },
+        {
+          "id": "irwvxo5an",
+          "month": "2026-03",
+          "path": "/uploads/reports/34d1z9kr3/2026-03.pdf",
+          "createdAt": "2026-03-06T02:07:18.944Z"
+        }
+      ],
+      "sendHistory": [
+        {
+          "id": "5ed7fmot8",
+          "sentAt": "2026-03-06T05:12:02.248Z",
+          "status": "sent",
+          "by": "Coach Andi"
+        },
+        {
+          "id": "sk3xlfpb6",
+          "sentAt": "2026-03-06T05:08:59.451Z",
+          "by": "Coach Andi",
+          "status": "skipped"
+        },
+        {
+          "id": "ufpp30rev",
+          "sentAt": "2026-03-06T03:17:21.059Z",
+          "status": "sent",
+          "by": "Coach Andi"
+        },
+        {
+          "id": "fqzw2lbhf",
+          "sentAt": "2026-03-06T03:10:05.649Z",
+          "status": "sent",
+          "by": "Coach Andi"
+        },
+        {
+          "id": "1hwmpzqcp",
+          "sentAt": "2026-03-06T02:14:03.751Z",
+          "by": "Coach Andi",
+          "status": "sent"
+        },
+        {
+          "id": "uvjs7gk45",
+          "sentAt": "2026-03-06T02:13:55.549Z",
+          "status": "queued",
+          "by": "Coach Andi"
+        }
+      ],
+      "lastUpdatedAt": "2026-03-06T04:03:47.960Z",
+      "lastUpdatedBy": "Coach Andi"
+    },
+    {
+      "id": "l2bylrll9",
+      "gymnastId": "d33luck6c",
+      "month": "2026-03",
+      "readiness": "draft",
+      "eventReports": {
+        "Vault": {
+          "event": "Vault",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-04T19:44:36.385Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Vault Foundation 1",
+              "status": "Not Started"
+            },
+            {
+              "name": "Vault Foundation 2",
+              "status": "Not Started"
+            }
+          ]
+        },
+        "Bars": {
+          "event": "Bars",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-04T19:44:36.385Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Bars Foundation 1",
+              "status": "Not Started"
+            },
+            {
+              "name": "Bars Foundation 2",
+              "status": "Not Started"
+            }
+          ]
+        },
+        "Beam": {
+          "event": "Beam",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-04T19:44:36.385Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Beam Foundation 1",
+              "status": "Not Started"
+            },
+            {
+              "name": "Beam Foundation 2",
+              "status": "Not Started"
+            }
+          ]
+        },
+        "Floor": {
+          "event": "Floor",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-04T19:44:36.385Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Floor Foundation 1",
+              "status": "Not Started"
+            },
+            {
+              "name": "Floor Foundation 2",
+              "status": "Not Started"
+            }
+          ]
+        },
+        "Strength/Flexibility": {
+          "event": "Strength/Flexibility",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-04T19:44:36.385Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Strength/Flexibility Foundation 1",
+              "status": "Not Started"
+            },
+            {
+              "name": "Strength/Flexibility Foundation 2",
+              "status": "Not Started"
+            }
+          ]
+        },
+        "Behavior": {
+          "event": "Behavior",
+          "eventNotes": "",
+          "lastUpdatedAt": "2026-03-04T19:44:36.385Z",
+          "lastUpdatedBy": "Coach Andi",
+          "skills": [
+            {
+              "name": "Behavior Foundation 1",
+              "status": "Not Started"
+            },
+            {
+              "name": "Behavior Foundation 2",
+              "status": "Not Started"
+            }
+          ]
+        }
+      },
+      "behavior": {
+        "effort": 3,
+        "coachability": 3,
+        "focus": 3,
+        "respect": 3,
+        "comments": ""
+      },
+      "goals": [
+        {
+          "id": "kepru4qby",
+          "goal": "",
+          "progressNote": ""
+        }
+      ],
+      "attendance": "",
+      "injuries": "",
+      "reminders": "",
+      "generalNotes": "",
+      "pdfHistory": [],
+      "sendHistory": [
+        {
+          "id": "3hit3h4wa",
+          "sentAt": "2026-03-06T05:08:55.747Z",
+          "by": "Coach Andi",
+          "status": "skipped"
+        },
+        {
+          "id": "ynnckytrb",
+          "sentAt": "2026-03-06T03:16:58.394Z",
+          "by": "Coach Andi",
+          "status": "skipped"
+        }
+      ],
+      "lastUpdatedAt": "2026-03-04T19:44:36.386Z",
+      "lastUpdatedBy": "Coach Andi"
+    }
+  ]
+}

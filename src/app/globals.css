@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 247 247 248;
+  --surface: 255 255 255;
+  --border: 229 231 235;
+  --text: 17 17 17;
+  --muted: 107 114 128;
+}
+
+.dark {
+  --bg: 15 15 18;
+  --surface: 24 24 29;
+  --border: 62 62 70;
+  --text: 245 245 245;
+  --muted: 163 163 178;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-bg text-text font-sans antialiased;
+  }
+
+  h2 {
+    @apply text-[20px] font-semibold;
+  }
+
+  p {
+    @apply text-[15px];
+  }
+}
