@@ -9,7 +9,7 @@ import { Button } from './ui/button'
 import { COACH_SESSION_KEY } from '../lib/coach-session'
 
 const nav = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/gymnasts', label: 'Gymnasts', icon: Users },
   { href: '/reports', label: 'Report Builder', icon: ClipboardCheck },
   { href: '/needs', label: 'Needs Updating', icon: ShieldAlert },
@@ -35,7 +35,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
 
     if (storedCoach && pathname === '/login') {
-      router.replace('/')
+      router.replace('/dashboard')
       setSessionReady(true)
       return
     }
@@ -84,7 +84,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Menu className="h-5 w-5" />
             </Button>
             <img src="/images/nfgc-logo.png" alt="NFGC" className="h-10 w-auto max-w-[120px] object-contain" />
-            <Link href="/" className="text-[26px] font-semibold">NFGC Family Reports</Link>
+            <Link href="/dashboard" className="text-[26px] font-semibold">NFGC Family Reports</Link>
           </div>
           <div className="hidden items-center gap-3 md:flex">
             <p className="text-sm text-muted">Signed in: {currentCoach || 'Coach'}</p>

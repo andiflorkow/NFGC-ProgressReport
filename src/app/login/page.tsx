@@ -64,7 +64,7 @@ export default function LoginPage() {
                 }
               } finally {
                 setLoggingIn(false)
-                router.replace('/')
+                router.replace('/dashboard')
               }
             }}
           >

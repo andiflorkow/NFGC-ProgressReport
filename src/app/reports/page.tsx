@@ -663,8 +663,8 @@ export default function ReportsPage() {
                   readiness: 'ready',
                   sendHistory: [{ id: uid(), sentAt: new Date().toISOString(), status: 'queued', by: data.coachName }, ...current.sendHistory],
                 }))
-                toast('Queued for email')
-              }}>Send / Queue</Button>
+                toast('Marked ready to send')
+              }}>Ready to Send</Button>
             </div>
           </CardContent>
         </Card>
