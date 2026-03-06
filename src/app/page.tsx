@@ -1,5 +1,7 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import { LoginView } from '../components/login-view'
 
 export default function RootPage() {
-  redirect('/login')
+  return <LoginView />
 }

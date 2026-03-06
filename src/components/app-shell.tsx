@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 import { COACH_SESSION_KEY } from '../lib/coach-session'
+import { applyTheme, readThemeMode } from '../lib/theme'
 
 const nav = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -28,13 +29,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const storedCoach = localStorage.getItem(COACH_SESSION_KEY)?.trim() || ''
     setCurrentCoach(storedCoach)
 
-    if (!storedCoach && pathname !== '/login') {
-      router.replace('/login')
+    if (!storedCoach && pathname !== '/') {
+      router.replace('/')
       setSessionReady(true)
       return
     }
 
-    if (storedCoach && pathname === '/login') {
+    if (storedCoach && (pathname === '/' || pathname === '/login')) {
       router.replace('/dashboard')
       setSessionReady(true)
       return
@@ -43,7 +44,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSessionReady(true)
   }, [pathname, router])
 
-  if (pathname === '/login') {
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const syncTheme = () => applyTheme(readThemeMode())
+
+    syncTheme()
+    media.addEventListener('change', syncTheme)
+    window.addEventListener('storage', syncTheme)
+
+    return () => {
+      media.removeEventListener('change', syncTheme)
+      window.removeEventListener('storage', syncTheme)
+    }
+  }, [])
+
+  if (pathname === '/' || pathname === '/login') {
     return <div className="min-h-screen bg-bg">{children}</div>
   }
 
@@ -94,7 +109,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               onClick={() => {
                 localStorage.removeItem(COACH_SESSION_KEY)
                 setCurrentCoach('')
-                router.push('/login')
+                router.push('/')
               }}
             >
               Switch Coach

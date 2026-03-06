@@ -1,20 +1,23 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
 import { useToast, ToastRoot } from '../../components/ui/toast'
 import { useAppData } from '../../hooks/use-app-data'
+import { applyTheme, readThemeMode, THEME_MODE_KEY, ThemeMode } from '../../lib/theme'
 
 export default function SettingsPage() {
   const { open, setOpen, message, toast } = useToast()
   const { data, save, loading } = useAppData()
+  const [themeMode, setThemeMode] = useState<ThemeMode>('auto')
 
   useEffect(() => {
-    if (!data) return
-    document.documentElement.classList.toggle('dark', data.darkMode)
-  }, [data?.darkMode])
+    const mode = readThemeMode()
+    setThemeMode(mode)
+    applyTheme(mode)
+  }, [])
 
   if (loading || !data) return <p>Loading...</p>
 
@@ -41,14 +44,22 @@ export default function SettingsPage() {
           </div>
           <div className="flex items-center justify-between rounded-xl border border-border bg-bg p-3">
             <div>
-              <p className="font-medium">Dark mode</p>
-              <p className="text-sm text-muted">Light mode is default. Dark mode is optional.</p>
+              <p className="font-medium">Theme</p>
+              <p className="text-sm text-muted">
+                Automatic follows your system theme. Switch to light mode if you prefer a brighter view.
+              </p>
             </div>
             <Button
               variant="secondary"
-              onClick={() => save({ ...data, darkMode: !data.darkMode }).then(() => toast('Theme updated')).catch(() => toast('Could not update theme'))}
+              onClick={() => {
+                const nextMode: ThemeMode = themeMode === 'auto' ? 'light' : 'auto'
+                localStorage.setItem(THEME_MODE_KEY, nextMode)
+                setThemeMode(nextMode)
+                applyTheme(nextMode)
+                toast(nextMode === 'auto' ? 'Theme set to automatic' : 'Theme set to light mode')
+              }}
             >
-              {data.darkMode ? 'Disable' : 'Enable'}
+              {themeMode === 'auto' ? 'Switch to Light Mode' : 'Use Automatic Theme'}
             </Button>
           </div>
         </CardContent>
