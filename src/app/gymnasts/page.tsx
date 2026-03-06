@@ -11,6 +11,7 @@ import { Badge } from '../../components/ui/badge'
 import { useToast, ToastRoot } from '../../components/ui/toast'
 import { useAppData } from '../../hooks/use-app-data'
 import { Gymnast, GymStatus } from '../../types/models'
+import { formatReportMonth } from '../../lib/utils'
 
 const uid = () => Math.random().toString(36).slice(2, 11)
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -76,6 +77,21 @@ export default function GymnastsPage() {
     if (!data) return undefined
     return data.gymnasts.find((item) => item.id === (selectedGymnastId || filtered[0]?.id))
   }, [data, selectedGymnastId, filtered])
+
+  const selectedLatestReport = useMemo(() => {
+    if (!data || !selected) return undefined
+    return data.reports
+      .filter((report) => report.gymnastId === selected.id)
+      .sort((a, b) => b.month.localeCompare(a.month))[0]
+  }, [data, selected])
+
+  const selectedReportCompletion = useMemo(() => {
+    if (!selectedLatestReport) return 'No report yet'
+    const allEventsComplete = Object.values(selectedLatestReport.eventReports).every(
+      (event) => event.isComplete ?? (selectedLatestReport.readiness === 'ready'),
+    )
+    return allEventsComplete ? 'Complete' : 'Incomplete'
+  }, [selectedLatestReport])
 
   if (loading || !data) return <p>Loading...</p>
 
@@ -212,13 +228,34 @@ export default function GymnastsPage() {
 
             <div className="space-y-2">
               {filtered.map((item) => (
-                <button key={item.id} onClick={() => setSelectedGymnastId(item.id)} className="w-full rounded-xl border border-border bg-bg p-3 text-left hover:bg-black/5">
+                <div
+                  key={item.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setSelectedGymnastId(item.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      setSelectedGymnastId(item.id)
+                    }
+                  }}
+                  className="w-full rounded-xl border border-border bg-bg p-3 text-left hover:bg-black/5"
+                >
                   <div className="flex items-center justify-between">
-                    <p className="font-medium">{item.name}</p>
+                    <Link
+                      href={`/gymnasts/${item.id}`}
+                      className="font-medium hover:underline"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        setSelectedGymnastId(item.id)
+                      }}
+                    >
+                      {item.name}
+                    </Link>
                     <Badge variant={item.status === 'Active' ? 'success' : 'warning'}>{item.status}</Badge>
                   </div>
                   <p className="text-sm text-muted">Level {item.level}</p>
-                </button>
+                </div>
               ))}
             </div>
           </CardContent>
@@ -234,6 +271,9 @@ export default function GymnastsPage() {
                 <div className="rounded-xl border border-border bg-bg p-3">
                   <p className="font-medium">{selected.name}</p>
                   <p className="text-sm text-muted">Level {selected.level} • {selected.status}</p>
+                  <p className="mt-1 text-sm text-muted">
+                    Latest report: {selectedLatestReport ? `${formatReportMonth(selectedLatestReport.month)} - ${selectedReportCompletion}` : selectedReportCompletion}
+                  </p>
                   <p className="mt-1 text-sm text-muted">Last updated by {selected.lastUpdatedBy} on {new Date(selected.lastUpdatedAt).toLocaleDateString()}</p>
                 </div>
                 <div className="rounded-xl border border-border bg-bg p-3">

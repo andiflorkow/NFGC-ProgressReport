@@ -75,6 +75,25 @@ const LEVEL_SKILL_LIBRARY: Partial<Record<string, Partial<Record<EventName, stri
   },
 }
 
+const PROJECTED_LEVEL_OPTIONS = [
+  'Xcel Bronze',
+  'Xcel Silver',
+  'Xcel Gold',
+  'Xcel Platinum',
+  'Xcel Diamond',
+  'Xcel Sapphire',
+  'Level 1',
+  'Level 2',
+  'Level 3',
+  'Level 4',
+  'Level 5',
+  'Level 6',
+  'Level 7',
+  'Level 8',
+  'Level 9',
+  'Level 10',
+] as const
+
 const emptyEventValues = EVENTS.reduce((acc, event) => {
   acc[event] = ''
   return acc
@@ -107,6 +126,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (!data || !gymnastId) return
+    const selectedGymnast = data.gymnasts.find((item) => item.id === gymnastId)
     const existing = data.reports.find((item) => item.gymnastId === gymnastId && item.month === month)
     if (existing) {
       setReport(existing)
@@ -134,6 +154,7 @@ export default function ReportsPage() {
       eventReports: baseEventReports,
       behavior: { effort: 3, coachability: 3, focus: 3, respect: 3, comments: '' },
       goals: [{ id: uid(), goal: '', progressNote: '' }],
+      projectedLevel: { level: selectedGymnast?.level || '', notes: '' },
       attendance: '',
       injuries: '',
       reminders: '',
@@ -515,12 +536,12 @@ export default function ReportsPage() {
 
             <div className="rounded-xl border border-border bg-bg p-3 space-y-4">
               <div>
-                <p className="font-medium">Behavior and Monthly Summary</p>
+                <p className="font-medium">Monthly Summary</p>
                 <p className="text-sm text-muted">Use quick ratings and short notes. Keep it simple and coach-friendly.</p>
               </div>
 
               <div className="rounded-lg border border-border p-3 space-y-3">
-                <p className="text-sm font-medium">Behavior Ratings (1 to 5)</p>
+                <p className="text-sm font-medium">Monthly Ratings (1 to 5)</p>
                 {BEHAVIOR_METRICS.map((metric) => {
                   const value = report.behavior[metric.key]
                   return (
@@ -546,9 +567,9 @@ export default function ReportsPage() {
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
-                  <p className="text-sm font-medium">Behavior Comments</p>
+                  <p className="text-sm font-medium">Monthly Summary Notes</p>
                   <Input
-                    placeholder="Short behavior note"
+                    placeholder="Short monthly summary note"
                     value={report.behavior.comments || ''}
                     onChange={(event) =>
                       updateReport((current) => ({
@@ -610,6 +631,50 @@ export default function ReportsPage() {
                   Add Goal
                 </Button>
               </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Current Projected Level</p>
+                  <Select
+                    value={report.projectedLevel?.level || ''}
+                    onValueChange={(value) =>
+                      updateReport((current) => ({
+                        ...current,
+                        projectedLevel: {
+                          ...current.projectedLevel,
+                          level: value,
+                        },
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select projected level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROJECTED_LEVEL_OPTIONS.map((item) => (
+                        <SelectItem key={item} value={item}>{item}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">Projected Level Notes</p>
+                  <Input
+                    placeholder="Notes about projected level"
+                    value={report.projectedLevel?.notes || ''}
+                    onChange={(event) =>
+                      updateReport((current) => ({
+                        ...current,
+                        projectedLevel: {
+                          ...current.projectedLevel,
+                          notes: event.target.value,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+
               {report.goals.map((goal) => (
                 <div key={goal.id} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
                   <Input

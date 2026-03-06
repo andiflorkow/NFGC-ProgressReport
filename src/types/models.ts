@@ -71,6 +71,10 @@ export interface Report {
     comments?: string
   }
   goals: GoalItem[]
+  projectedLevel?: {
+    level?: string
+    notes?: string
+  }
   attendance?: string
   injuries?: string
   reminders?: string

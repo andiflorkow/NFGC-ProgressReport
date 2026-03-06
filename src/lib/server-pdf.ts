@@ -65,18 +65,27 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   }
 
   if (y < 120) y = 120
-  page.drawText('Behavior & Monthly Summary', { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
+  page.drawText('Monthly Summary', { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
   y -= 16
   page.drawText(`Effort ${report.behavior.effort}/5 | Coachability ${report.behavior.coachability}/5 | Focus ${report.behavior.focus}/5 | Respect ${report.behavior.respect}/5`, { x: 30, y, size: 10, font })
   y -= 14
   if (report.behavior.comments) {
-    page.drawText(`Behavior comments: ${report.behavior.comments}`, { x: 30, y, size: 10, font })
+    page.drawText(`Monthly summary notes: ${report.behavior.comments}`, { x: 30, y, size: 10, font })
     y -= 14
   }
 
   if (report.attendance) { page.drawText(`Attendance: ${report.attendance}`, { x: 30, y, size: 10, font }); y -= 12 }
   if (report.injuries) { page.drawText(`Injuries: ${report.injuries}`, { x: 30, y, size: 10, font }); y -= 12 }
   if (report.reminders) { page.drawText(`Reminders: ${report.reminders}`, { x: 30, y, size: 10, font }); y -= 12 }
+
+  if (report.projectedLevel?.level) {
+    page.drawText(`Current Projected Level: ${report.projectedLevel.level}`, { x: 30, y, size: 10, font })
+    y -= 12
+  }
+  if (report.projectedLevel?.notes) {
+    page.drawText(`Projected level notes: ${report.projectedLevel.notes}`, { x: 30, y, size: 10, font })
+    y -= 12
+  }
 
   for (const [index, goal] of report.goals.entries()) {
     if (!goal.goal && !goal.progressNote) continue
