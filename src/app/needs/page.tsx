@@ -38,7 +38,13 @@ export default function NeedsPage() {
         <CardHeader><CardTitle>Needs Updating</CardTitle></CardHeader>
         <CardContent>
           <p className="mb-2 text-sm text-muted">Primary task: identify missing report sections and jump directly to fix them.</p>
-          <Input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="max-w-xs" />
+          <Input
+            type="month"
+            value={month}
+            onClick={(event) => (event.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+            onChange={(event) => setMonth(event.target.value)}
+            className="max-w-xs"
+          />
         </CardContent>
       </Card>
 

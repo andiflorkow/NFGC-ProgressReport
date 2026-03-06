@@ -41,7 +41,13 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <p className="mb-2 text-sm text-muted">Select month to review report readiness.</p>
-          <Input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="max-w-xs" />
+          <Input
+            type="month"
+            value={month}
+            onClick={(event) => (event.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+            onChange={(event) => setMonth(event.target.value)}
+            className="max-w-xs"
+          />
         </CardContent>
       </Card>
 

@@ -296,7 +296,12 @@ export default function ReportsPage() {
             </div>
             <div>
               <p className="mb-1 text-sm">Month <span className="text-primary">* Required</span></p>
-              <Input type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+              <Input
+                type="month"
+                value={month}
+                onClick={(event) => (event.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
+                onChange={(event) => setMonth(event.target.value)}
+              />
             </div>
             <Button disabled={!requiredStepOneComplete} onClick={() => setStep(2)}>Next: Fill Events</Button>
             {!requiredStepOneComplete ? <p className="text-sm text-muted">Select required fields to continue.</p> : null}
