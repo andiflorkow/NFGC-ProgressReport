@@ -13,6 +13,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '..
 import { useAppData } from '../../../hooks/use-app-data'
 import { useToast, ToastRoot } from '../../../components/ui/toast'
 import { formatReportMonth } from '../../../lib/utils'
+import { openReportPdfPreview } from '../../../lib/pdf-preview'
 
 const uid = () => Math.random().toString(36).slice(2, 11)
 
@@ -259,19 +260,15 @@ export default function GymnastProfilePage() {
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <Button size="sm" variant="secondary" onClick={async () => {
-                      const response = await fetch(`/api/reports/${report.id}/pdf`, { method: 'POST' })
-                      if (!response.ok) return toast('Could not generate PDF')
-                      const blob = await response.blob()
-                      window.open(URL.createObjectURL(blob), '_blank')
+                      await openReportPdfPreview(report.id, toast)
                     }}>
                       Preview PDF
                     </Button>
                     <Button size="sm" variant="secondary" onClick={async () => {
-                      const response = await fetch(`/api/reports/${report.id}/pdf?download=1`)
-                      if (!response.ok) return toast('No saved PDF yet')
-                      const blob = await response.blob()
-                      const url = URL.createObjectURL(blob)
-                      window.open(url, '_blank')
+                      const downloadWindow = window.open(`/api/reports/${report.id}/pdf?download=1`, '_blank')
+                      if (!downloadWindow) {
+                        toast('Popup blocked. Please allow popups to download PDFs.')
+                      }
                     }}>
                       Download PDF
                     </Button>

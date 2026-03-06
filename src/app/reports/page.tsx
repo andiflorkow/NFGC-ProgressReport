@@ -11,6 +11,7 @@ import { useToast, ToastRoot } from '../../components/ui/toast'
 import { useAppData } from '../../hooks/use-app-data'
 import { EventName, Report, SkillStatus } from '../../types/models'
 import { formatReportMonth } from '../../lib/utils'
+import { openReportPdfPreview } from '../../lib/pdf-preview'
 
 const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Behavior']
 const STATUSES: SkillStatus[] = ['Not Started', 'Working', 'Consistent', 'Competition Ready']
@@ -650,11 +651,7 @@ export default function ReportsPage() {
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" onClick={() => setStep(2)}>Back</Button>
               <Button variant="secondary" onClick={async () => {
-                const response = await fetch(`/api/reports/${report.id}/pdf`, { method: 'POST' })
-                if (!response.ok) return toast('Preview failed. Please try again.')
-                const blob = await response.blob()
-                window.open(URL.createObjectURL(blob), '_blank')
-                toast('PDF preview opened')
+                await openReportPdfPreview(report.id, toast)
               }}>Preview PDF</Button>
               <Button onClick={async () => {
                 const response = await fetch(`/api/reports/${report.id}/pdf`, { method: 'POST' })

@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../componen
 import { useToast, ToastRoot } from '../../components/ui/toast'
 import { useAppData } from '../../hooks/use-app-data'
 import { formatReportMonth } from '../../lib/utils'
+import { openReportPdfPreview } from '../../lib/pdf-preview'
 
 const uid = () => Math.random().toString(36).slice(2, 11)
 
@@ -135,10 +136,7 @@ export default function ReviewPage() {
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="secondary" disabled={!row.report} onClick={async () => {
                   if (!row.report) return
-                  const response = await fetch(`/api/reports/${row.report.id}/pdf`, { method: 'POST' })
-                  if (!response.ok) return toast('PDF preview failed')
-                  const blob = await response.blob()
-                  window.open(URL.createObjectURL(blob), '_blank')
+                  await openReportPdfPreview(row.report.id, toast)
                 }}>Preview PDF</Button>
                 <Button size="sm" disabled={!row.report || row.report.readiness !== 'ready'} onClick={async () => {
                   if (!row.report) return
