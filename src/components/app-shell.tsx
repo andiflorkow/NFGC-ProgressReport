@@ -35,7 +35,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return
     }
 
-    if (storedCoach && (pathname === '/' || pathname === '/login')) {
+    if (storedCoach && pathname === '/login') {
       router.replace('/dashboard')
       setSessionReady(true)
       return
