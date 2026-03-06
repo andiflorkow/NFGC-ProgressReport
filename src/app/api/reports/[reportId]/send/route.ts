@@ -1,7 +1,5 @@
-import fs from 'node:fs/promises'
-import path from 'node:path'
 import { NextResponse } from 'next/server'
-import { readDb, writeDb } from '../../../../../lib/server-db'
+import { readDb, saveReportPdf, writeDb } from '../../../../../lib/server-db'
 import { buildReportPdf } from '../../../../../lib/server-pdf'
 import { sendReportEmail } from '../../../../../lib/server-mail'
 import { formatReportMonth } from '../../../../../lib/utils'
@@ -34,10 +32,14 @@ export async function POST(_request: Request, context: { params: Promise<{ repor
     const pdfBytes = await buildReportPdf(report, gymnast, data.contactEmail)
     const month = report.month
     const monthLabel = formatReportMonth(month)
-    const fileName = `${month}.pdf`
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'reports', gymnast.id)
-    await fs.mkdir(uploadsDir, { recursive: true })
-    await fs.writeFile(path.join(uploadsDir, fileName), pdfBytes)
+    const pdfId = uid()
+    const storedPath = await saveReportPdf({
+      pdfId,
+      reportId: report.id,
+      gymnastId: gymnast.id,
+      month,
+      pdfBytes,
+    })
 
     const subject = `NFGC Progress Report - ${gymnast.name} - ${monthLabel}`
     const text = [
@@ -72,9 +74,9 @@ export async function POST(_request: Request, context: { params: Promise<{ repor
 
     report.pdfHistory = [
       {
-        id: uid(),
+        id: pdfId,
         month,
-        path: `/uploads/reports/${gymnast.id}/${fileName}`,
+        path: storedPath,
         createdAt: new Date().toISOString(),
       },
       ...report.pdfHistory,

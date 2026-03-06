@@ -1,7 +1,5 @@
-import fs from 'node:fs/promises'
-import path from 'node:path'
 import { NextResponse } from 'next/server'
-import { readDb, writeDb } from '../../../../../lib/server-db'
+import { readDb, readStoredPdf, saveReportPdf, writeDb } from '../../../../../lib/server-db'
 import { buildReportPdf } from '../../../../../lib/server-pdf'
 import { formatReportMonth } from '../../../../../lib/utils'
 
@@ -17,9 +15,9 @@ export async function GET(request: Request, context: { params: Promise<{ reportI
     const latest = report.pdfHistory[0]
     if (!latest) return NextResponse.json({ error: 'No saved PDF found' }, { status: 404 })
 
-    const normalizedPath = latest.path.replace(/^\//, '').split('/').join(path.sep)
-    const absolutePath = path.join(process.cwd(), normalizedPath)
-    const pdfBytes = await fs.readFile(absolutePath)
+    const pdfBytes = await readStoredPdf(latest.path)
+    if (!pdfBytes) return NextResponse.json({ error: 'Saved PDF file is missing' }, { status: 404 })
+
     const fileName = `NFGC Progress Report - ${formatReportMonth(report.month)}.pdf`
     return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
@@ -49,19 +47,21 @@ export async function POST(_request: Request, context: { params: Promise<{ repor
     }
 
     const pdfBytes = await buildReportPdf(report, gymnast, data.contactEmail)
-
     const month = report.month
-    const uploadsDir = path.join(process.cwd(), 'uploads', 'reports', gymnast.id)
-    await fs.mkdir(uploadsDir, { recursive: true })
-    const fileName = `${month}.pdf`
-    const filePath = path.join(uploadsDir, fileName)
-    await fs.writeFile(filePath, pdfBytes)
+    const pdfId = uid()
+    const storedPath = await saveReportPdf({
+      pdfId,
+      reportId: report.id,
+      gymnastId: gymnast.id,
+      month,
+      pdfBytes,
+    })
 
     report.pdfHistory = [
       {
-        id: uid(),
+        id: pdfId,
         month,
-        path: `/uploads/reports/${gymnast.id}/${fileName}`,
+        path: storedPath,
         createdAt: new Date().toISOString(),
       },
       ...report.pdfHistory,

@@ -4,6 +4,7 @@ import { neon } from '@neondatabase/serverless'
 import { AppData, EventName } from '../types/models'
 
 const DATA_PATH = path.join(process.cwd(), 'data', 'db.json')
+const UPLOADS_ROOT = path.join(process.cwd(), 'uploads', 'reports')
 const DATABASE_URL = process.env.DATABASE_URL
 
 const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Behavior']
@@ -100,6 +101,29 @@ async function ensureNeonSchema(sql: ReturnType<typeof neon>) {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS report_pdfs (
+      id TEXT PRIMARY KEY,
+      report_id TEXT NOT NULL,
+      month TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      content BYTEA NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `
+}
+
+function buildDbPdfPath(pdfId: string) {
+  return `db://report-pdfs/${pdfId}`
+}
+
+function parseDbPdfPath(pdfPath: string) {
+  const prefix = 'db://report-pdfs/'
+  if (!pdfPath.startsWith(prefix)) {
+    return null
+  }
+  return pdfPath.slice(prefix.length)
 }
 
 async function readNeonDb(sql: ReturnType<typeof neon>): Promise<AppData> {
@@ -150,4 +174,72 @@ export async function writeDb(data: AppData): Promise<void> {
 
   await fs.mkdir(path.dirname(DATA_PATH), { recursive: true })
   await fs.writeFile(DATA_PATH, JSON.stringify(data, null, 2), 'utf8')
+}
+
+export async function saveReportPdf(input: {
+  pdfId: string
+  reportId: string
+  gymnastId: string
+  month: string
+  pdfBytes: Uint8Array
+}): Promise<string> {
+  const sql = getSqlClient()
+  const fileName = `${input.month}.pdf`
+
+  if (sql) {
+    await ensureNeonSchema(sql)
+    await sql`
+      INSERT INTO report_pdfs (id, report_id, month, file_name, content, created_at)
+      VALUES (${input.pdfId}, ${input.reportId}, ${input.month}, ${fileName}, ${Buffer.from(input.pdfBytes)}, NOW())
+      ON CONFLICT (id)
+      DO UPDATE SET
+        report_id = EXCLUDED.report_id,
+        month = EXCLUDED.month,
+        file_name = EXCLUDED.file_name,
+        content = EXCLUDED.content,
+        created_at = NOW()
+    `
+
+    return buildDbPdfPath(input.pdfId)
+  }
+
+  const gymnastDir = path.join(UPLOADS_ROOT, input.gymnastId)
+  await fs.mkdir(gymnastDir, { recursive: true })
+  const localPath = path.join(gymnastDir, fileName)
+  await fs.writeFile(localPath, input.pdfBytes)
+  return `/uploads/reports/${input.gymnastId}/${fileName}`
+}
+
+export async function readStoredPdf(pdfPath: string): Promise<Uint8Array | null> {
+  const sql = getSqlClient()
+  const dbPdfId = parseDbPdfPath(pdfPath)
+
+  if (sql && dbPdfId) {
+    await ensureNeonSchema(sql)
+    const rows = (await sql`
+      SELECT content
+      FROM report_pdfs
+      WHERE id = ${dbPdfId}
+      LIMIT 1
+    `) as Array<{ content: unknown }>
+
+    const value = rows[0]?.content
+    if (!value) {
+      return null
+    }
+
+    if (value instanceof Uint8Array) {
+      return value
+    }
+
+    return Buffer.from(String(value), 'base64')
+  }
+
+  try {
+    const normalizedPath = pdfPath.replace(/^\//, '').split('/').join(path.sep)
+    const absolutePath = path.join(process.cwd(), normalizedPath)
+    return await fs.readFile(absolutePath)
+  } catch {
+    return null
+  }
 }
