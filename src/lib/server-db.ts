@@ -1,13 +1,29 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
+import { neon } from '@neondatabase/serverless'
 import { AppData, EventName } from '../types/models'
 
 const DATA_PATH = path.join(process.cwd(), 'data', 'db.json')
+const DATABASE_URL = process.env.DATABASE_URL
 
 const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Behavior']
 
 const nowIso = () => new Date().toISOString()
 const uid = () => Math.random().toString(36).slice(2, 11)
+
+let sqlClient: ReturnType<typeof neon> | null = null
+
+function getSqlClient() {
+  if (!DATABASE_URL) {
+    return null
+  }
+
+  if (!sqlClient) {
+    sqlClient = neon(DATABASE_URL)
+  }
+
+  return sqlClient
+}
 
 function createDefaultData(): AppData {
   const gymnastId = uid()
@@ -76,13 +92,62 @@ async function ensureDataFile() {
   }
 }
 
+async function ensureNeonSchema(sql: ReturnType<typeof neon>) {
+  await sql`
+    CREATE TABLE IF NOT EXISTS app_state (
+      id INTEGER PRIMARY KEY,
+      payload JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `
+}
+
+async function readNeonDb(sql: ReturnType<typeof neon>): Promise<AppData> {
+  await ensureNeonSchema(sql)
+  const rows = (await sql`SELECT payload FROM app_state WHERE id = 1`) as Array<{ payload: unknown }>
+
+  if (rows.length === 0) {
+    const seedData = createDefaultData()
+    await writeNeonDb(sql, seedData)
+    return seedData
+  }
+
+  const payload = rows[0]?.payload
+  if (typeof payload === 'string') {
+    return JSON.parse(payload) as AppData
+  }
+
+  return payload as AppData
+}
+
+async function writeNeonDb(sql: ReturnType<typeof neon>, data: AppData): Promise<void> {
+  await ensureNeonSchema(sql)
+  await sql`
+    INSERT INTO app_state (id, payload, updated_at)
+    VALUES (1, ${JSON.stringify(data)}::jsonb, NOW())
+    ON CONFLICT (id)
+    DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()
+  `
+}
+
 export async function readDb(): Promise<AppData> {
+  const sql = getSqlClient()
+  if (sql) {
+    return readNeonDb(sql)
+  }
+
   await ensureDataFile()
   const raw = await fs.readFile(DATA_PATH, 'utf8')
   return JSON.parse(raw) as AppData
 }
 
 export async function writeDb(data: AppData): Promise<void> {
+  const sql = getSqlClient()
+  if (sql) {
+    await writeNeonDb(sql, data)
+    return
+  }
+
   await fs.mkdir(path.dirname(DATA_PATH), { recursive: true })
   await fs.writeFile(DATA_PATH, JSON.stringify(data, null, 2), 'utf8')
 }
