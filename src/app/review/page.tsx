@@ -90,11 +90,11 @@ export default function ReviewPage() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <CardHeader className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
           <CardTitle>Email Review</CardTitle>
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={selectAllReady}>Select All Ready</Button>
-            <Button onClick={() => setBulkConfirmOpen(true)}>Bulk Send Selected</Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button className="w-full sm:w-auto" variant="secondary" onClick={selectAllReady}>Select All Ready</Button>
+            <Button className="w-full sm:w-auto" onClick={() => setBulkConfirmOpen(true)}>Bulk Send Selected</Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -104,7 +104,7 @@ export default function ReviewPage() {
             value={month}
             onClick={(event) => (event.currentTarget as HTMLInputElement & { showPicker?: () => void }).showPicker?.()}
             onChange={(event) => setMonth(event.target.value)}
-            className="max-w-xs"
+            className="w-full sm:max-w-xs"
           />
         </CardContent>
       </Card>
@@ -126,19 +126,19 @@ export default function ReviewPage() {
                 <p className="font-medium">
                   <Link className="hover:underline" href={`/gymnasts/${row.gymnast.id}`}>{row.gymnast.name}</Link>
                 </p>
-                <p className="text-sm text-muted">Recipients: {row.gymnast.guardians.map((item) => item.email).join(', ') || 'Missing recipient'}</p>
-                <p className="text-sm text-muted">Subject: NFGC Progress Report - {row.gymnast.name} - {formatReportMonth(month)}</p>
+                <p className="break-words text-sm text-muted">Recipients: {row.gymnast.guardians.map((item) => item.email).join(', ') || 'Missing recipient'}</p>
+                <p className="break-words text-sm text-muted">Subject: NFGC Progress Report - {row.gymnast.name} - {formatReportMonth(month)}</p>
               </div>
               <div>
                 <Badge variant={row.report?.readiness === 'ready' ? 'success' : 'warning'}>{row.report?.readiness === 'ready' ? 'Ready' : 'Not Ready'}</Badge>
                 <p className="mt-1 text-sm text-muted">Last updated: {row.report ? new Date(row.report.lastUpdatedAt).toLocaleDateString() : 'No report yet'}</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="secondary" disabled={!row.report} onClick={async () => {
+              <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:flex-wrap">
+                <Button className="w-full md:w-auto" size="sm" variant="secondary" disabled={!row.report} onClick={async () => {
                   if (!row.report) return
                   await openReportPdfPreview(row.report.id, toast)
                 }}>Preview PDF</Button>
-                <Button size="sm" disabled={!row.report || row.report.readiness !== 'ready'} onClick={async () => {
+                <Button className="w-full md:w-auto" size="sm" disabled={!row.report || row.report.readiness !== 'ready'} onClick={async () => {
                   if (!row.report) return
                   setSingleConfirmReportId(row.report.id)
                 }}>Send</Button>
@@ -183,9 +183,10 @@ export default function ReviewPage() {
             <DialogTitle>Send {selectedReadyCount} selected ready report(s)?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted">This will immediately send selected ready reports for {formatReportMonth(month)}.</p>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setBulkConfirmOpen(false)}>Cancel</Button>
+          <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button className="w-full sm:w-auto" variant="secondary" onClick={() => setBulkConfirmOpen(false)}>Cancel</Button>
             <Button
+              className="w-full sm:w-auto"
               disabled={selectedReadyCount === 0}
               onClick={async () => {
                 setBulkConfirmOpen(false)
@@ -204,9 +205,10 @@ export default function ReviewPage() {
             <DialogTitle>Send this report now?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted">This will email the selected gymnast's family immediately.</p>
-          <div className="mt-3 flex justify-end gap-2">
-            <Button variant="secondary" onClick={() => setSingleConfirmReportId(null)}>Cancel</Button>
+          <div className="mt-3 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button className="w-full sm:w-auto" variant="secondary" onClick={() => setSingleConfirmReportId(null)}>Cancel</Button>
             <Button
+              className="w-full sm:w-auto"
               onClick={async () => {
                 const reportId = singleConfirmReportId
                 setSingleConfirmReportId(null)
