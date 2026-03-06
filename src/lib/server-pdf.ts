@@ -78,6 +78,14 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   if (report.injuries) { page.drawText(`Injuries: ${report.injuries}`, { x: 30, y, size: 10, font }); y -= 12 }
   if (report.reminders) { page.drawText(`Reminders: ${report.reminders}`, { x: 30, y, size: 10, font }); y -= 12 }
 
+  if (y < 120) {
+    page = pdf.addPage([595, 842])
+    await drawHeader()
+    y = height - 40
+  }
+  page.drawText('Goals', { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
+  y -= 16
+
   if (report.projectedLevel?.level) {
     page.drawText(`Current Projected Level: ${report.projectedLevel.level}`, { x: 30, y, size: 10, font })
     y -= 12
