@@ -66,6 +66,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <div className="min-h-screen bg-bg p-6">Loading...</div>
   }
 
+  const handleSwitchCoach = () => {
+    localStorage.removeItem(COACH_SESSION_KEY)
+    setCurrentCoach('')
+    setOpen(false)
+    router.push('/')
+  }
+
   const navContent = (
     <nav className="space-y-1 p-2">
       {nav.map((item) => {
@@ -106,11 +113,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => {
-                localStorage.removeItem(COACH_SESSION_KEY)
-                setCurrentCoach('')
-                router.push('/')
-              }}
+              onClick={handleSwitchCoach}
             >
               Switch Coach
             </Button>
@@ -133,6 +136,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </Button>
             </div>
             {navContent}
+            <div className="border-t border-border p-3">
+              <p className="mb-2 text-sm text-muted">Signed in: {currentCoach || 'Coach'}</p>
+              <Button className="w-full" variant="secondary" onClick={handleSwitchCoach}>
+                Switch Coach
+              </Button>
+            </div>
           </aside>
         </div>
       ) : null}
