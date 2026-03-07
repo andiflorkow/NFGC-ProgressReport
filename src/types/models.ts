@@ -1,6 +1,19 @@
 export type GymStatus = 'Active' | 'Inactive'
-export type SkillStatus = 'Not Started' | 'Working' | 'Consistent' | 'Competition Ready'
-export type EventName = 'Vault' | 'Bars' | 'Beam' | 'Floor' | 'Strength/Flexibility' | 'Behavior'
+export type SkillStatus =
+  | '1'
+  | '2'
+  | '3'
+  | '4'
+  | '5'
+  | 'Not Started'
+  | 'Working'
+  | 'Consistent'
+  | 'Competition Ready'
+  | 'Exceeding Expectations'
+  | 'Meeting Expectations'
+  | 'Working/Improving'
+  | 'Needs Support'
+export type EventName = 'Vault' | 'Bars' | 'Beam' | 'Floor' | 'Strength/Flexibility' | 'Coachability'
 
 export interface Guardian {
   id: string

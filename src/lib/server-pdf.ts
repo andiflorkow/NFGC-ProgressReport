@@ -41,12 +41,13 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
 
   for (const eventKey of Object.keys(report.eventReports)) {
     const event = report.eventReports[eventKey as keyof typeof report.eventReports]
+    const eventLabel = (event.event as string) === 'Behavior' ? 'Coachability' : event.event
     if (y < 120) {
       page = pdf.addPage([595, 842])
       await drawHeader()
       y = height - 40
     }
-    page.drawText(event.event, { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
+    page.drawText(eventLabel, { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
     y -= 16
     if (event.eventNotes) {
       page.drawText(`Event notes: ${event.eventNotes}`, { x: 40, y, size: 10, font: bold })
@@ -67,12 +68,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   if (y < 120) y = 120
   page.drawText('Monthly Summary', { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
   y -= 16
-  page.drawText(`Effort ${report.behavior.effort}/5 | Coachability ${report.behavior.coachability}/5 | Focus ${report.behavior.focus}/5 | Respect ${report.behavior.respect}/5`, { x: 30, y, size: 10, font })
-  y -= 14
-  if (report.behavior.comments) {
-    page.drawText(`Monthly summary notes: ${report.behavior.comments}`, { x: 30, y, size: 10, font })
-    y -= 14
-  }
+  if (report.generalNotes) { page.drawText(`Monthly summary notes: ${report.generalNotes}`, { x: 30, y, size: 10, font }); y -= 12 }
 
   if (report.attendance) { page.drawText(`Attendance: ${report.attendance}`, { x: 30, y, size: 10, font }); y -= 12 }
   if (report.injuries) { page.drawText(`Injuries: ${report.injuries}`, { x: 30, y, size: 10, font }); y -= 12 }

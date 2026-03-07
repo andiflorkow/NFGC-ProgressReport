@@ -221,7 +221,7 @@ export default function GymnastProfilePage() {
                       <AccordionItem key={event.event} value={event.event}>
                         <AccordionTrigger>
                           <div className="flex w-full items-center justify-between pr-2">
-                            <span>{event.event}</span>
+                            <span>{(event.event as string) === 'Behavior' ? 'Coachability' : event.event}</span>
                             <Badge variant={(event.isComplete ?? (checklistReport.readiness === 'ready')) ? 'success' : 'warning'}>
                               {(event.isComplete ?? (checklistReport.readiness === 'ready')) ? 'Completed' : 'In Progress'}
                             </Badge>

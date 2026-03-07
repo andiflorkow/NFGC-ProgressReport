@@ -13,22 +13,18 @@ import { EventName, Report, SkillStatus } from '../../types/models'
 import { formatReportMonth } from '../../lib/utils'
 import { openReportPdfPreview } from '../../lib/pdf-preview'
 
-const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Behavior']
-const STATUSES: SkillStatus[] = ['Not Started', 'Working', 'Consistent', 'Competition Ready']
-const OPTIONAL_SKILL_EVENTS: EventName[] = ['Strength/Flexibility', 'Behavior']
-const BEHAVIOR_METRICS = [
-  { key: 'effort', label: 'Effort' },
-  { key: 'coachability', label: 'Coachability' },
-  { key: 'focus', label: 'Focus' },
-  { key: 'respect', label: 'Respect' },
-] as const
+const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Coachability']
+const SKILL_STATUSES: SkillStatus[] = ['Not Started', 'Working', 'Consistent', 'Competition Ready']
+const COACHABILITY_STATUSES: SkillStatus[] = ['1', '2', '3', '4', '5']
+const COACHABILITY_FIELDS = ['Respect', 'Work Ethic', 'Training Habits'] as const
+const OPTIONAL_SKILL_EVENTS: EventName[] = ['Strength/Flexibility']
 const DEFAULT_EVENT_SKILL_LIBRARY: Record<EventName, string[]> = {
   Vault: ['Front Handspring', 'Round-Off Entry', 'Handstand Flat Back', 'Block Technique', 'Stick Landing'],
   Bars: ['Pullover', 'Back Hip Circle', 'Cast to Horizontal', 'Kip Drill', 'Dismount Landing'],
   Beam: ['Cartwheel', 'Handstand Hold', 'Leap Series', 'Turn Control', 'Dismount'],
   Floor: ['Round-Off Back Handspring', 'Front Tuck', 'Dance Passage', 'Split Leap', 'Routine Form'],
   'Strength/Flexibility': [],
-  Behavior: [],
+  Coachability: [],
 }
 
 const LEVEL_SKILL_LIBRARY: Partial<Record<string, Partial<Record<EventName, string[]>>>> = {
@@ -99,6 +95,69 @@ const emptyEventValues = EVENTS.reduce((acc, event) => {
   return acc
 }, {} as Record<EventName, string>)
 
+const buildCoachabilitySkills = () =>
+  COACHABILITY_FIELDS.map((name) => ({
+    name,
+    status: '3' as SkillStatus,
+    notes: '',
+  }))
+
+const normalizeCoachabilityStatus = (status?: SkillStatus) => {
+  if (!status) return '3' as SkillStatus
+  if (status === 'Exceeding Expectations') return '5' as SkillStatus
+  if (status === 'Meeting Expectations') return '4' as SkillStatus
+  if (status === 'Working/Improving') return '3' as SkillStatus
+  if (status === 'Needs Support') return '2' as SkillStatus
+  if (status === 'Not Started') return '1' as SkillStatus
+  if (status === 'Working') return '3' as SkillStatus
+  if (status === 'Consistent') return '4' as SkillStatus
+  if (status === 'Competition Ready') return '5' as SkillStatus
+  return status
+}
+
+const buildEmptyEventReport = (event: EventName, coachName: string): Report['eventReports'][EventName] => ({
+  event,
+  eventNotes: '',
+  isComplete: false,
+  lastUpdatedAt: new Date().toISOString(),
+  lastUpdatedBy: coachName,
+  skills: event === 'Coachability' ? buildCoachabilitySkills() : [],
+})
+
+const normalizeReportForCurrentEvents = (report: Report, coachName: string): Report => {
+  const rawEventReports = report.eventReports as unknown as Record<string, Report['eventReports'][EventName]>
+  const nextEventReports = EVENTS.reduce((acc, event) => {
+    const current = rawEventReports[event] ?? (event === 'Coachability' ? rawEventReports.Behavior : undefined)
+    const fallback = buildEmptyEventReport(event, coachName)
+    acc[event] = current
+      ? {
+          ...fallback,
+          ...current,
+          event,
+          skills:
+            event === 'Coachability'
+              ? COACHABILITY_FIELDS.map((fieldName) => {
+                  const existing = current.skills.find((skill) => skill.name === fieldName)
+                  if (!existing) {
+                    return { name: fieldName, status: '3' as SkillStatus, notes: '' }
+                  }
+                  return {
+                    ...existing,
+                    status: normalizeCoachabilityStatus(existing.status),
+                  }
+                })
+              : current.skills,
+        }
+      : fallback
+    return acc
+  }, {} as Report['eventReports'])
+
+  return {
+    ...report,
+    eventReports: nextEventReports,
+  }
+}
+
 const uid = () => Math.random().toString(36).slice(2, 11)
 
 export default function ReportsPage() {
@@ -118,7 +177,8 @@ export default function ReportsPage() {
     const query = new URLSearchParams(window.location.search)
     const queryGymnastId = query.get('gymnastId')
     const queryMonth = query.get('month')
-    const queryEvent = query.get('event') as EventName | null
+    const rawQueryEvent = query.get('event')
+    const queryEvent = (rawQueryEvent === 'Behavior' ? 'Coachability' : rawQueryEvent) as EventName | null
     if (queryGymnastId) setGymnastId(queryGymnastId)
     if (queryMonth) setMonth(queryMonth)
     if (queryEvent && EVENTS.includes(queryEvent)) setActiveEvent(queryEvent)
@@ -129,20 +189,13 @@ export default function ReportsPage() {
     const selectedGymnast = data.gymnasts.find((item) => item.id === gymnastId)
     const existing = data.reports.find((item) => item.gymnastId === gymnastId && item.month === month)
     if (existing) {
-      setReport(existing)
+      setReport(normalizeReportForCurrentEvents(existing, data.coachName))
       setSavedFlag('Saved')
       return
     }
 
     const baseEventReports = EVENTS.reduce((acc, event) => {
-      acc[event] = {
-        event,
-        eventNotes: '',
-        isComplete: false,
-        lastUpdatedAt: new Date().toISOString(),
-        lastUpdatedBy: data.coachName,
-        skills: [],
-      }
+      acc[event] = buildEmptyEventReport(event, data.coachName)
       return acc
     }, {} as Report['eventReports'])
 
@@ -232,6 +285,7 @@ export default function ReportsPage() {
   }, [report, activeEvent, levelSkillLibrary])
 
   const addSkillToActiveEvent = (skillName: string) => {
+    if (activeEvent === 'Coachability') return
     const normalized = skillName.trim()
     if (!normalized) return
     if (!report) return
@@ -260,6 +314,7 @@ export default function ReportsPage() {
   }
 
   const removeSkillFromActiveEvent = (skillName: string) => {
+    if (activeEvent === 'Coachability') return
     updateReport((current) => ({
       ...current,
       eventReports: {
@@ -268,16 +323,6 @@ export default function ReportsPage() {
           ...current.eventReports[activeEvent],
           skills: current.eventReports[activeEvent].skills.filter((skill) => skill.name !== skillName),
         },
-      },
-    }))
-  }
-
-  const setBehaviorScore = (field: 'effort' | 'coachability' | 'focus' | 'respect', value: number) => {
-    updateReport((current) => ({
-      ...current,
-      behavior: {
-        ...current.behavior,
-        [field]: value,
       },
     }))
   }
@@ -367,43 +412,49 @@ export default function ReportsPage() {
                 <AccordionContent>
                   <div className="space-y-3">
                     <div className="rounded-xl border border-border bg-bg p-3">
-                      <p className="mb-2 font-medium">Add skills to {activeEvent}</p>
+                      <p className="mb-2 font-medium">{activeEvent === 'Coachability' ? 'Coachability fields' : `Add skills to ${activeEvent}`}</p>
                       {OPTIONAL_SKILL_EVENTS.includes(activeEvent) ? (
                         <p className="mb-2 text-sm text-muted">Skills are optional for this event. Add only if you want to track them.</p>
                       ) : null}
-                      <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                        <Select
-                          value={selectedSuggestedSkill[activeEvent]}
-                          onValueChange={(value) => setSelectedSuggestedSkill((current) => ({ ...current, [activeEvent]: value }))}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a suggested skill" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableSuggestedSkills.map((skill) => (
-                              <SelectItem key={skill} value={skill}>{skill}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          disabled={!selectedSuggestedSkill[activeEvent]}
-                          onClick={() => addSkillToActiveEvent(selectedSuggestedSkill[activeEvent])}
-                        >
-                          Add Selected Skill
-                        </Button>
-                      </div>
-                      <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
-                        <Input
-                          placeholder="Or type a custom skill"
-                          value={customSkillName[activeEvent]}
-                          onChange={(event) => setCustomSkillName((current) => ({ ...current, [activeEvent]: event.target.value }))}
-                        />
-                        <Button type="button" variant="secondary" onClick={() => addSkillToActiveEvent(customSkillName[activeEvent])}>
-                          Add Custom Skill
-                        </Button>
-                      </div>
+                      {activeEvent === 'Coachability' ? (
+                        <p className="text-sm text-muted">Respect, Work Ethic, and Training Habits are required coachability fields and use a 1-5 rating scale.</p>
+                      ) : (
+                        <>
+                          <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                            <Select
+                              value={selectedSuggestedSkill[activeEvent]}
+                              onValueChange={(value) => setSelectedSuggestedSkill((current) => ({ ...current, [activeEvent]: value }))}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a suggested skill" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableSuggestedSkills.map((skill) => (
+                                  <SelectItem key={skill} value={skill}>{skill}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              disabled={!selectedSuggestedSkill[activeEvent]}
+                              onClick={() => addSkillToActiveEvent(selectedSuggestedSkill[activeEvent])}
+                            >
+                              Add Selected Skill
+                            </Button>
+                          </div>
+                          <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
+                            <Input
+                              placeholder="Or type a custom skill"
+                              value={customSkillName[activeEvent]}
+                              onChange={(event) => setCustomSkillName((current) => ({ ...current, [activeEvent]: event.target.value }))}
+                            />
+                            <Button type="button" variant="secondary" onClick={() => addSkillToActiveEvent(customSkillName[activeEvent])}>
+                              Add Custom Skill
+                            </Button>
+                          </div>
+                        </>
+                      )}
                     </div>
 
                     {!report.eventReports[activeEvent].skills.length ? (
@@ -414,12 +465,14 @@ export default function ReportsPage() {
                       <div key={skill.name} className="rounded-xl border border-border bg-bg p-3">
                         <div className="mb-2 flex items-center justify-between gap-2">
                           <p className="font-medium">{skill.name}</p>
-                          <Button type="button" size="sm" variant="ghost" onClick={() => removeSkillFromActiveEvent(skill.name)}>
-                            Remove
-                          </Button>
+                          {activeEvent !== 'Coachability' ? (
+                            <Button type="button" size="sm" variant="ghost" onClick={() => removeSkillFromActiveEvent(skill.name)}>
+                              Remove
+                            </Button>
+                          ) : null}
                         </div>
                         <div className="flex flex-wrap gap-1">
-                          {STATUSES.map((status) => (
+                          {(activeEvent === 'Coachability' ? COACHABILITY_STATUSES : SKILL_STATUSES).map((status) => (
                             <button
                               key={status}
                               onClick={() =>
@@ -444,7 +497,7 @@ export default function ReportsPage() {
                         </div>
                         <Input
                           className="mt-2"
-                          placeholder="Quick note (optional)"
+                          placeholder={activeEvent === 'Coachability' ? `${skill.name} note (optional)` : 'Quick note (optional)'}
                           value={skill.notes || ''}
                           onChange={(event) =>
                             updateReport((current) => ({
@@ -537,32 +590,7 @@ export default function ReportsPage() {
             <div className="rounded-xl border border-border bg-bg p-3 space-y-4">
               <div>
                 <p className="font-medium">Monthly Summary</p>
-                <p className="text-sm text-muted">Use quick ratings and short notes. Keep it simple and coach-friendly.</p>
-              </div>
-
-              <div className="rounded-lg border border-border p-3 space-y-3">
-                <p className="text-sm font-medium">Monthly Ratings (1 to 5)</p>
-                {BEHAVIOR_METRICS.map((metric) => {
-                  const value = report.behavior[metric.key]
-                  return (
-                    <div key={metric.key} className="flex flex-wrap items-center gap-2">
-                      <p className="w-24 text-sm text-muted">{metric.label}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {[1, 2, 3, 4, 5].map((score) => (
-                          <Button
-                            key={`${metric.key}-${score}`}
-                            type="button"
-                            size="sm"
-                            variant={value === score ? 'default' : 'secondary'}
-                            onClick={() => setBehaviorScore(metric.key, score)}
-                          >
-                            {score}
-                          </Button>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
+                <p className="text-sm text-muted">Use short notes. Keep it simple and coach-friendly.</p>
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
@@ -570,19 +598,6 @@ export default function ReportsPage() {
                   <p className="text-sm font-medium">Monthly Summary Notes</p>
                   <Input
                     placeholder="Short monthly summary note"
-                    value={report.behavior.comments || ''}
-                    onChange={(event) =>
-                      updateReport((current) => ({
-                        ...current,
-                        behavior: { ...current.behavior, comments: event.target.value },
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">General Notes</p>
-                  <Input
-                    placeholder="Monthly wrap-up note"
                     value={report.generalNotes || ''}
                     onChange={(event) => updateReport((current) => ({ ...current, generalNotes: event.target.value }))}
                   />

@@ -7,7 +7,7 @@ const DATA_PATH = path.join(process.cwd(), 'data', 'db.json')
 const UPLOADS_ROOT = path.join(process.cwd(), 'uploads', 'reports')
 const DATABASE_URL = process.env.DATABASE_URL
 
-const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Behavior']
+const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Coachability']
 
 const nowIso = () => new Date().toISOString()
 const uid = () => Math.random().toString(36).slice(2, 11)
@@ -36,10 +36,17 @@ function createDefaultData(): AppData {
         isComplete: false,
         lastUpdatedAt: nowIso(),
         lastUpdatedBy: 'Coach Andi',
-        skills: [
-          { name: `${event} Foundation 1`, status: 'Not Started' },
-          { name: `${event} Foundation 2`, status: 'Not Started' },
-        ],
+        skills:
+          event === 'Coachability'
+            ? [
+                { name: 'Respect', status: '3', notes: '' },
+                { name: 'Work Ethic', status: '3', notes: '' },
+                { name: 'Training Habits', status: '3', notes: '' },
+              ]
+            : [
+                { name: `${event} Foundation 1`, status: 'Not Started' },
+                { name: `${event} Foundation 2`, status: 'Not Started' },
+              ],
       }
       return acc
     },
