@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../components/ui/accordion'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
 import { useToast, ToastRoot } from '../../components/ui/toast'
@@ -164,7 +164,7 @@ export default function ReportsPage() {
   const { data, save, loading } = useAppData()
   const { open, setOpen, message, toast } = useToast()
 
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [gymnastId, setGymnastId] = useState('')
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
   const [report, setReport] = useState<Report | null>(null)
@@ -336,11 +336,12 @@ export default function ReportsPage() {
           <CardTitle>Report Builder</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <p className="text-sm text-muted">Primary task: complete one report in 3 clear steps.</p>
+          <p className="text-sm text-muted">Primary task: complete one report in 4 clear steps.</p>
           <div className="flex flex-wrap gap-2">
             <Badge variant={step === 1 ? 'default' : 'secondary'}>Step 1: Select</Badge>
             <Badge variant={step === 2 ? 'default' : 'secondary'}>Step 2: Fill Events</Badge>
-            <Badge variant={step === 3 ? 'default' : 'secondary'}>Step 3: Review & Send</Badge>
+            <Badge variant={step === 3 ? 'default' : 'secondary'}>Step 3: Monthly Summary</Badge>
+            <Badge variant={step === 4 ? 'default' : 'secondary'}>Step 4: Review & Send</Badge>
             <Badge variant="secondary">{savedFlag}</Badge>
           </div>
         </CardContent>
@@ -388,134 +389,138 @@ export default function ReportsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2 md:grid-cols-3">
-              {EVENTS.map((event) => {
-                const isComplete = report.eventReports[event].isComplete ?? (report.readiness === 'ready')
-                return (
-                  <Button
-                    key={event}
-                    type="button"
-                    variant={event === activeEvent ? 'default' : 'secondary'}
-                    onClick={() => setActiveEvent(event)}
-                    className="justify-between"
-                  >
-                    <span>{event}</span>
-                    <span className="text-xs">{isComplete ? 'Done' : 'Open'}</span>
-                  </Button>
-                )
-              })}
-            </div>
+            <Tabs value={activeEvent} onValueChange={(value) => setActiveEvent(value as EventName)}>
+              <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-xl bg-bg p-1">
+                {EVENTS.map((event) => {
+                  const isComplete = report.eventReports[event].isComplete ?? (report.readiness === 'ready')
+                  return (
+                    <TabsTrigger key={event} value={event} className="h-8 gap-2 px-2 py-1 text-xs">
+                      <span>{event}</span>
+                      <span className={isComplete ? 'text-green-700' : 'text-amber-700'}>{isComplete ? 'Done' : 'Open'}</span>
+                    </TabsTrigger>
+                  )
+                })}
+              </TabsList>
 
-            <Accordion type="single" collapsible value={activeEvent} onValueChange={(value) => setActiveEvent((value as EventName) || activeEvent)}>
-              <AccordionItem value={activeEvent}>
-                <AccordionTrigger>{activeEvent}</AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-3">
-                    <div className="rounded-xl border border-border bg-bg p-3">
-                      <p className="mb-2 font-medium">{activeEvent === 'Coachability' ? 'Coachability fields' : `Add skills to ${activeEvent}`}</p>
-                      {OPTIONAL_SKILL_EVENTS.includes(activeEvent) ? (
-                        <p className="mb-2 text-sm text-muted">Skills are optional for this event. Add only if you want to track them.</p>
-                      ) : null}
-                      {activeEvent === 'Coachability' ? (
-                        <p className="text-sm text-muted">Respect, Work Ethic, and Training Habits are required coachability fields and use a 1-5 rating scale.</p>
-                      ) : (
-                        <>
-                          <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                            <Select
-                              value={selectedSuggestedSkill[activeEvent]}
-                              onValueChange={(value) => setSelectedSuggestedSkill((current) => ({ ...current, [activeEvent]: value }))}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a suggested skill" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableSuggestedSkills.map((skill) => (
-                                  <SelectItem key={skill} value={skill}>{skill}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              disabled={!selectedSuggestedSkill[activeEvent]}
-                              onClick={() => addSkillToActiveEvent(selectedSuggestedSkill[activeEvent])}
-                            >
-                              Add Selected Skill
-                            </Button>
-                          </div>
-                          <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
-                            <Input
-                              placeholder="Or type a custom skill"
-                              value={customSkillName[activeEvent]}
-                              onChange={(event) => setCustomSkillName((current) => ({ ...current, [activeEvent]: event.target.value }))}
-                            />
-                            <Button type="button" variant="secondary" onClick={() => addSkillToActiveEvent(customSkillName[activeEvent])}>
-                              Add Custom Skill
-                            </Button>
-                          </div>
-                        </>
-                      )}
-                    </div>
+              <TabsContent value={activeEvent} className="space-y-3">
+                <div>
+                  <p className="text-sm font-semibold tracking-wide">{activeEvent}</p>
+                  <p className="text-xs text-muted">{activeEvent === 'Coachability' ? 'Coachability fields and ratings' : 'Event skill editing'}</p>
+                </div>
 
-                    {!report.eventReports[activeEvent].skills.length ? (
-                      <p className="text-sm text-muted">No skills added for this event yet. Select or add one above to begin.</p>
+                <div>
+                  <p className="mb-1 text-sm font-semibold">{activeEvent === 'Coachability' ? 'Coachability Fields' : 'Add Skill'}</p>
+                  <div className="rounded-xl border border-border bg-bg p-3">
+                    {OPTIONAL_SKILL_EVENTS.includes(activeEvent) ? (
+                      <p className="mb-2 text-sm text-muted">Skills are optional for this event. Add only if you want to track them.</p>
                     ) : null}
+                    {activeEvent === 'Coachability' ? (
+                      <p className="text-sm text-muted">Respect, Work Ethic, and Training Habits are required coachability fields and use a 1-5 rating scale.</p>
+                    ) : (
+                      <>
+                        <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                          <Select
+                            value={selectedSuggestedSkill[activeEvent]}
+                            onValueChange={(value) => setSelectedSuggestedSkill((current) => ({ ...current, [activeEvent]: value }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a suggested skill" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableSuggestedSkills.map((skill) => (
+                                <SelectItem key={skill} value={skill}>{skill}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            disabled={!selectedSuggestedSkill[activeEvent]}
+                            onClick={() => addSkillToActiveEvent(selectedSuggestedSkill[activeEvent])}
+                          >
+                            Add Selected Skill
+                          </Button>
+                        </div>
+                        <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
+                          <Input
+                            placeholder="Or type a custom skill"
+                            value={customSkillName[activeEvent]}
+                            onChange={(event) => setCustomSkillName((current) => ({ ...current, [activeEvent]: event.target.value }))}
+                          />
+                          <Button type="button" variant="secondary" onClick={() => addSkillToActiveEvent(customSkillName[activeEvent])}>
+                            Add Custom Skill
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
 
-                    {report.eventReports[activeEvent].skills.map((skill) => (
-                      <div key={skill.name} className="rounded-xl border border-border bg-bg p-3">
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                          <p className="font-medium">{skill.name}</p>
-                          {activeEvent !== 'Coachability' ? (
-                            <Button type="button" size="sm" variant="ghost" onClick={() => removeSkillFromActiveEvent(skill.name)}>
-                              Remove
-                            </Button>
-                          ) : null}
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {(activeEvent === 'Coachability' ? COACHABILITY_STATUSES : SKILL_STATUSES).map((status) => (
-                            <button
-                              key={status}
-                              onClick={() =>
-                                updateReport((current) => ({
-                                  ...current,
-                                  eventReports: {
-                                    ...current.eventReports,
-                                    [activeEvent]: {
-                                      ...current.eventReports[activeEvent],
-                                      skills: current.eventReports[activeEvent].skills.map((item) =>
-                                        item.name === skill.name ? { ...item, status } : item,
-                                      ),
-                                    },
+                {!report.eventReports[activeEvent].skills.length ? (
+                  <p className="text-sm text-muted">No skills added for this event yet. Select or add one above to begin.</p>
+                ) : null}
+
+                {report.eventReports[activeEvent].skills.map((skill) => (
+                  <div key={skill.name} className="space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">{skill.name}</p>
+                      {activeEvent !== 'Coachability' ? (
+                        <Button type="button" size="sm" variant="ghost" onClick={() => removeSkillFromActiveEvent(skill.name)}>
+                          Remove
+                        </Button>
+                      ) : null}
+                    </div>
+                    <div className="rounded-xl border border-border bg-bg p-3">
+                      <div className="flex flex-wrap gap-1">
+                        {(activeEvent === 'Coachability' ? COACHABILITY_STATUSES : SKILL_STATUSES).map((status) => (
+                          <button
+                            key={status}
+                            onClick={() =>
+                              updateReport((current) => ({
+                                ...current,
+                                eventReports: {
+                                  ...current.eventReports,
+                                  [activeEvent]: {
+                                    ...current.eventReports[activeEvent],
+                                    skills: current.eventReports[activeEvent].skills.map((item) =>
+                                      item.name === skill.name ? { ...item, status } : item,
+                                    ),
                                   },
-                                }))
-                              }
-                              className={status === skill.status ? 'rounded-full border border-primary bg-primary/15 px-2 py-1 text-xs' : 'rounded-full border border-border px-2 py-1 text-xs'}
-                            >
-                              {status}
-                            </button>
-                          ))}
-                        </div>
-                        <Input
-                          className="mt-2"
-                          placeholder={activeEvent === 'Coachability' ? `${skill.name} note (optional)` : 'Quick note (optional)'}
-                          value={skill.notes || ''}
-                          onChange={(event) =>
-                            updateReport((current) => ({
-                              ...current,
-                              eventReports: {
-                                ...current.eventReports,
-                                [activeEvent]: {
-                                  ...current.eventReports[activeEvent],
-                                  skills: current.eventReports[activeEvent].skills.map((item) =>
-                                    item.name === skill.name ? { ...item, notes: event.target.value } : item,
-                                  ),
                                 },
-                              },
-                            }))
-                          }
-                        />
+                              }))
+                            }
+                            className={status === skill.status ? 'rounded-full border border-primary bg-primary/15 px-2 py-1 text-xs' : 'rounded-full border border-border px-2 py-1 text-xs'}
+                          >
+                            {status}
+                          </button>
+                        ))}
                       </div>
-                    ))}
+                      <Input
+                        className="mt-2"
+                        placeholder={activeEvent === 'Coachability' ? `${skill.name} note (optional)` : 'Quick note (optional)'}
+                        value={skill.notes || ''}
+                        onChange={(event) =>
+                          updateReport((current) => ({
+                            ...current,
+                            eventReports: {
+                              ...current.eventReports,
+                              [activeEvent]: {
+                                ...current.eventReports[activeEvent],
+                                skills: current.eventReports[activeEvent].skills.map((item) =>
+                                  item.name === skill.name ? { ...item, notes: event.target.value } : item,
+                                ),
+                              },
+                            },
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <div>
+                  <p className="mb-1 text-sm font-semibold">Event Notes</p>
+                  <div className="rounded-xl border border-border bg-bg p-3">
                     <Input
                       placeholder="Event notes (optional)"
                       value={report.eventReports[activeEvent].eventNotes || ''}
@@ -529,49 +534,53 @@ export default function ReportsPage() {
                         }))
                       }
                     />
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-bg p-3">
-                      <div>
-                        <p className="font-medium">Event completion</p>
-                        <p className="text-sm text-muted">
-                          {(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready'))
-                            ? `Completed by ${report.eventReports[activeEvent].completedBy || data.coachName}`
-                            : 'Mark this event complete when your review is done.'}
-                        </p>
-                      </div>
-                      <Button
-                        variant={(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'secondary' : 'default'}
-                        onClick={() =>
-                          updateReport((current) => {
-                            const currentEvent = current.eventReports[activeEvent]
-                            const isCurrentlyComplete = currentEvent.isComplete ?? (current.readiness === 'ready')
-                            const nextComplete = !isCurrentlyComplete
-                            return {
-                              ...current,
-                              eventReports: {
-                                ...current.eventReports,
-                                [activeEvent]: {
-                                  ...currentEvent,
-                                  isComplete: nextComplete,
-                                  completedAt: nextComplete ? new Date().toISOString() : undefined,
-                                  completedBy: nextComplete ? data.coachName : undefined,
-                                },
-                              },
-                            }
-                          })
-                        }
-                      >
-                        {(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'Mark Incomplete' : 'Mark Complete'}
-                      </Button>
-                    </div>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
+                </div>
+
+                <div>
+                  <p className="mb-1 text-sm font-semibold">Completion</p>
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-bg p-3">
+                    <div>
+                      <p className="font-medium">Event completion</p>
+                      <p className="text-sm text-muted">
+                        {(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready'))
+                          ? `Completed by ${report.eventReports[activeEvent].completedBy || data.coachName}`
+                          : 'Mark this event complete when your review is done.'}
+                      </p>
+                    </div>
+                    <Button
+                      variant={(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'secondary' : 'default'}
+                      onClick={() =>
+                        updateReport((current) => {
+                          const currentEvent = current.eventReports[activeEvent]
+                          const isCurrentlyComplete = currentEvent.isComplete ?? (current.readiness === 'ready')
+                          const nextComplete = !isCurrentlyComplete
+                          return {
+                            ...current,
+                            eventReports: {
+                              ...current.eventReports,
+                              [activeEvent]: {
+                                ...currentEvent,
+                                isComplete: nextComplete,
+                                completedAt: nextComplete ? new Date().toISOString() : undefined,
+                                completedBy: nextComplete ? data.coachName : undefined,
+                              },
+                            },
+                          }
+                        })
+                      }
+                    >
+                      {(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'Mark Incomplete' : 'Mark Complete'}
+                    </Button>
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
 
             <div className="flex flex-wrap justify-between gap-2">
               <Button variant="secondary" onClick={() => setStep(1)}>Back</Button>
-              <Button onClick={() => requiredStepTwoComplete ? setStep(3) : toast('Mark each event complete before review')}>
-                Next: Review
+              <Button onClick={() => requiredStepTwoComplete ? setStep(3) : toast('Mark each event complete before continuing')}>
+                Next: Monthly Summary
               </Button>
             </div>
           </CardContent>
@@ -580,7 +589,7 @@ export default function ReportsPage() {
 
       {step === 3 && report ? (
         <Card>
-          <CardHeader><CardTitle>Step 3: Review + Generate PDF + Send</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Step 3: Monthly Summary</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-xl border border-border bg-bg p-3">
               <p className="font-medium">Summary</p>
@@ -627,6 +636,23 @@ export default function ReportsPage() {
                   />
                 </div>
               </div>
+            </div>
+
+            <div className="flex flex-wrap justify-between gap-2">
+              <Button variant="secondary" onClick={() => setStep(2)}>Back</Button>
+              <Button onClick={() => setStep(4)}>Next: Review</Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {step === 4 && report ? (
+        <Card>
+          <CardHeader><CardTitle>Step 4: Review + Generate PDF + Send</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-xl border border-border bg-bg p-3">
+              <p className="font-medium">Summary</p>
+              <p className="text-sm text-muted">Gymnast: {currentGymnast?.name || 'Unknown'} • Month: {formatReportMonth(month)}</p>
             </div>
 
             <div className="rounded-xl border border-border bg-bg p-3 space-y-2">
@@ -729,7 +755,7 @@ export default function ReportsPage() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" onClick={() => setStep(2)}>Back</Button>
+              <Button variant="secondary" onClick={() => setStep(3)}>Back</Button>
               <Button variant="secondary" onClick={async () => {
                 await openReportPdfPreview(report.id, toast)
               }}>Preview PDF</Button>

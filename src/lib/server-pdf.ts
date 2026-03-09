@@ -8,6 +8,19 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const pdf = await PDFDocument.create()
   let page = pdf.addPage([595, 842])
   const { width, height } = page.getSize()
+  const EVENT_ORDER = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Coachability'] as const
+  const COMPACT_EVENTS = new Set(['Vault', 'Bars', 'Beam', 'Floor'])
+
+  const normalizeCoachabilityRating = (status?: string) => {
+    if (!status) return '3/5'
+    if (status === '1' || status === '2' || status === '3' || status === '4' || status === '5') return `${status}/5`
+    if (status === 'Exceeding Expectations' || status === 'Competition Ready') return '5/5'
+    if (status === 'Meeting Expectations' || status === 'Consistent') return '4/5'
+    if (status === 'Working/Improving' || status === 'Working') return '3/5'
+    if (status === 'Needs Support') return '2/5'
+    if (status === 'Not Started') return '1/5'
+    return status
+  }
 
   const drawHeader = async () => {
     page.drawRectangle({ x: 0, y: height - 18, width, height: 18, color: rgb(176 / 255, 18 / 255, 18 / 255) })
@@ -39,15 +52,17 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   page.drawText(`Gymnast: ${gymnast.name} | Level ${gymnast.level} | ${formatReportMonth(report.month)}`, { x: 30, y, size: 11, font })
   y -= 20
 
-  for (const eventKey of Object.keys(report.eventReports)) {
-    const event = report.eventReports[eventKey as keyof typeof report.eventReports]
-    const eventLabel = (event.event as string) === 'Behavior' ? 'Coachability' : event.event
+  const rawEventReports = report.eventReports as unknown as Record<string, Report['eventReports'][keyof Report['eventReports']]>
+
+  for (const eventName of EVENT_ORDER) {
+    const event = rawEventReports[eventName] ?? (eventName === 'Coachability' ? rawEventReports.Behavior : undefined)
+    if (!event) continue
     if (y < 120) {
       page = pdf.addPage([595, 842])
       await drawHeader()
       y = height - 40
     }
-    page.drawText(eventLabel, { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
+    page.drawText(eventName, { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
     y -= 16
     if (event.eventNotes) {
       page.drawText(`Event notes: ${event.eventNotes}`, { x: 40, y, size: 10, font: bold })
@@ -55,24 +70,16 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     }
     for (const skill of event.skills) {
       if (y < 80) break
-      page.drawText(`• ${skill.name}: ${skill.status}`, { x: 40, y, size: 10, font })
+      const displayStatus = eventName === 'Coachability' ? normalizeCoachabilityRating(skill.status) : skill.status
+      page.drawText(`• ${skill.name}: ${displayStatus}`, { x: 40, y, size: 10, font })
       y -= 12
       if (skill.notes) {
         page.drawText(`  Note: ${skill.notes}`, { x: 50, y, size: 9, font })
         y -= 11
       }
     }
-    y -= 8
+    y -= COMPACT_EVENTS.has(eventName) ? 8 : 18
   }
-
-  if (y < 120) y = 120
-  page.drawText('Monthly Summary', { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
-  y -= 16
-  if (report.generalNotes) { page.drawText(`Monthly summary notes: ${report.generalNotes}`, { x: 30, y, size: 10, font }); y -= 12 }
-
-  if (report.attendance) { page.drawText(`Attendance: ${report.attendance}`, { x: 30, y, size: 10, font }); y -= 12 }
-  if (report.injuries) { page.drawText(`Injuries: ${report.injuries}`, { x: 30, y, size: 10, font }); y -= 12 }
-  if (report.reminders) { page.drawText(`Reminders: ${report.reminders}`, { x: 30, y, size: 10, font }); y -= 12 }
 
   if (y < 120) {
     page = pdf.addPage([595, 842])
@@ -97,6 +104,35 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     y -= 12
     page.drawText(`Progress: ${goal.progressNote || 'N/A'}`, { x: 40, y, size: 10, font })
     y -= 12
+  }
+  y -= 18
+
+  const notesRows = [
+    { label: 'Notes', value: report.generalNotes?.trim() || '' },
+    { label: 'Attendance', value: report.attendance?.trim() || '' },
+    { label: 'Injuries', value: report.injuries?.trim() || '' },
+    { label: 'Reminders', value: report.reminders?.trim() || '' },
+  ].filter((row) => row.value)
+
+  if (notesRows.length) {
+    if (y < 120) {
+      page = pdf.addPage([595, 842])
+      await drawHeader()
+      y = height - 40
+    }
+    page.drawText('Notes', { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
+    y -= 16
+
+    for (const row of notesRows) {
+      if (y < 80) {
+        page = pdf.addPage([595, 842])
+        await drawHeader()
+        y = height - 40
+      }
+      page.drawText(`${row.label}: ${row.value}`, { x: 30, y, size: 10, font })
+      y -= 12
+    }
+    y -= 18
   }
 
   page.drawText(`Do not reply to this email. Contact ${contactEmail} for any questions or concerns.`, { x: 30, y: 30, size: 9, font, color: rgb(0.4, 0.4, 0.4) })
