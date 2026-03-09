@@ -170,8 +170,7 @@ export default function ReportsPage() {
   const [report, setReport] = useState<Report | null>(null)
   const [activeEvent, setActiveEvent] = useState<EventName>('Vault')
   const [savedFlag, setSavedFlag] = useState('Saved')
-  const [selectedSuggestedSkill, setSelectedSuggestedSkill] = useState<Record<EventName, string>>(emptyEventValues)
-  const [customSkillName, setCustomSkillName] = useState<Record<EventName, string>>(emptyEventValues)
+  const [addSkillInput, setAddSkillInput] = useState<Record<EventName, string>>(emptyEventValues)
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search)
@@ -309,8 +308,7 @@ export default function ReportsPage() {
       },
     }))
 
-    setSelectedSuggestedSkill((current) => ({ ...current, [activeEvent]: '' }))
-    setCustomSkillName((current) => ({ ...current, [activeEvent]: '' }))
+    setAddSkillInput((current) => ({ ...current, [activeEvent]: '' }))
   }
 
   const removeSkillFromActiveEvent = (skillName: string) => {
@@ -403,60 +401,79 @@ export default function ReportsPage() {
               </TabsList>
 
               <TabsContent value={activeEvent} className="space-y-3">
-                <div>
-                  <p className="text-sm font-semibold tracking-wide">{activeEvent}</p>
-                  <p className="text-xs text-muted">{activeEvent === 'Coachability' ? 'Coachability fields and ratings' : 'Event skill editing'}</p>
+                <div className="flex items-start justify-between gap-3 border-b border-border pb-2">
+                  <div>
+                    <p className="text-base font-semibold tracking-wide">{activeEvent}</p>
+                    <p className="text-xs text-muted">{activeEvent === 'Coachability' ? 'Coachability fields and ratings' : 'Event skill editing'}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'success' : 'warning'}>
+                      {(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'Complete' : 'Open'}
+                    </Badge>
+                    <Button
+                      size="sm"
+                      variant={(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'secondary' : 'default'}
+                      onClick={() =>
+                        updateReport((current) => {
+                          const currentEvent = current.eventReports[activeEvent]
+                          const isCurrentlyComplete = currentEvent.isComplete ?? (current.readiness === 'ready')
+                          const nextComplete = !isCurrentlyComplete
+                          return {
+                            ...current,
+                            eventReports: {
+                              ...current.eventReports,
+                              [activeEvent]: {
+                                ...currentEvent,
+                                isComplete: nextComplete,
+                                completedAt: nextComplete ? new Date().toISOString() : undefined,
+                                completedBy: nextComplete ? data.coachName : undefined,
+                              },
+                            },
+                          }
+                        })
+                      }
+                    >
+                      {(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'Mark Incomplete' : 'Mark Event Complete'}
+                    </Button>
+                  </div>
                 </div>
 
                 <div>
-                  <p className="mb-1 text-sm font-semibold">{activeEvent === 'Coachability' ? 'Coachability Fields' : 'Add Skill'}</p>
-                  <div className="rounded-xl border-2 border-dashed border-primary/40 bg-surface/70 p-3 shadow-sm">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
-                      {activeEvent === 'Coachability' ? 'Coachability Setup' : 'Skill Builder'}
-                    </p>
-                    {OPTIONAL_SKILL_EVENTS.includes(activeEvent) ? (
-                      <p className="mb-2 text-sm text-muted">Skills are optional for this event. Add only if you want to track them.</p>
-                    ) : null}
-                    {activeEvent === 'Coachability' ? (
-                      <p className="text-sm text-muted">Respect, Work Ethic, and Training Habits are required coachability fields and use a 1-5 rating scale.</p>
-                    ) : (
-                      <>
-                        <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                          <Select
-                            value={selectedSuggestedSkill[activeEvent]}
-                            onValueChange={(value) => setSelectedSuggestedSkill((current) => ({ ...current, [activeEvent]: value }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a suggested skill" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {availableSuggestedSkills.map((skill) => (
-                                <SelectItem key={skill} value={skill}>{skill}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            disabled={!selectedSuggestedSkill[activeEvent]}
-                            onClick={() => addSkillToActiveEvent(selectedSuggestedSkill[activeEvent])}
-                          >
-                            Add Selected Skill
-                          </Button>
-                        </div>
-                        <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
-                          <Input
-                            placeholder="Or type a custom skill"
-                            value={customSkillName[activeEvent]}
-                            onChange={(event) => setCustomSkillName((current) => ({ ...current, [activeEvent]: event.target.value }))}
-                          />
-                          <Button type="button" variant="secondary" onClick={() => addSkillToActiveEvent(customSkillName[activeEvent])}>
-                            Add Custom Skill
-                          </Button>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  <p className="mb-1 text-sm font-semibold">Add Skill</p>
+                  {OPTIONAL_SKILL_EVENTS.includes(activeEvent) ? (
+                    <p className="mb-2 text-sm text-muted">Skills are optional for this event. Add only if you want to track them.</p>
+                  ) : null}
+                  {activeEvent === 'Coachability' ? (
+                    <p className="text-sm text-muted">Respect, Work Ethic, and Training Habits are required coachability fields and use a 1-5 rating scale.</p>
+                  ) : (
+                    <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                      <div>
+                        <Input
+                          placeholder="Search or add skill..."
+                          value={addSkillInput[activeEvent]}
+                          onChange={(event) => setAddSkillInput((current) => ({ ...current, [activeEvent]: event.target.value }))}
+                          list={`skill-suggestions-${activeEvent}`}
+                        />
+                        <datalist id={`skill-suggestions-${activeEvent}`}>
+                          {availableSuggestedSkills.map((skill) => (
+                            <option key={skill} value={skill} />
+                          ))}
+                        </datalist>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={!addSkillInput[activeEvent].trim()}
+                        onClick={() => addSkillToActiveEvent(addSkillInput[activeEvent])}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <p className="mb-1 text-sm font-semibold">Skills</p>
                 </div>
 
                 {!report.eventReports[activeEvent].skills.length ? (
@@ -464,17 +481,18 @@ export default function ReportsPage() {
                 ) : null}
 
                 {report.eventReports[activeEvent].skills.map((skill) => (
-                  <div key={skill.name} className="space-y-1">
-                    <div className="flex items-center justify-between gap-2">
+                  <div key={skill.name} className="rounded-xl border border-border bg-bg p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold">{skill.name}</p>
                       {activeEvent !== 'Coachability' ? (
                         <Button type="button" size="sm" variant="ghost" onClick={() => removeSkillFromActiveEvent(skill.name)}>
-                          Remove
+                          Remove Skill
                         </Button>
                       ) : null}
                     </div>
-                    <div className="rounded-xl border border-border bg-bg p-3">
-                      <div className="flex flex-wrap gap-1">
+
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Status</p>
+                    <div className="flex flex-wrap gap-1">
                         {(activeEvent === 'Coachability' ? COACHABILITY_STATUSES : SKILL_STATUSES).map((status) => (
                           <button
                             key={status}
@@ -497,27 +515,27 @@ export default function ReportsPage() {
                             {status}
                           </button>
                         ))}
-                      </div>
-                      <Input
-                        className="mt-2"
-                        placeholder={activeEvent === 'Coachability' ? `${skill.name} note (optional)` : 'Quick note (optional)'}
-                        value={skill.notes || ''}
-                        onChange={(event) =>
-                          updateReport((current) => ({
-                            ...current,
-                            eventReports: {
-                              ...current.eventReports,
-                              [activeEvent]: {
-                                ...current.eventReports[activeEvent],
-                                skills: current.eventReports[activeEvent].skills.map((item) =>
-                                  item.name === skill.name ? { ...item, notes: event.target.value } : item,
-                                ),
-                              },
-                            },
-                          }))
-                        }
-                      />
                     </div>
+
+                    <p className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-muted">Notes</p>
+                    <Input
+                      placeholder={activeEvent === 'Coachability' ? `${skill.name} note (optional)` : 'Quick note (optional)'}
+                      value={skill.notes || ''}
+                      onChange={(event) =>
+                        updateReport((current) => ({
+                          ...current,
+                          eventReports: {
+                            ...current.eventReports,
+                            [activeEvent]: {
+                              ...current.eventReports[activeEvent],
+                              skills: current.eventReports[activeEvent].skills.map((item) =>
+                                item.name === skill.name ? { ...item, notes: event.target.value } : item,
+                              ),
+                            },
+                          },
+                        }))
+                      }
+                    />
                   </div>
                 ))}
 
@@ -537,44 +555,6 @@ export default function ReportsPage() {
                         }))
                       }
                     />
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-1 text-sm font-semibold">Completion</p>
-                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border bg-bg p-3">
-                    <div>
-                      <p className="font-medium">Event completion</p>
-                      <p className="text-sm text-muted">
-                        {(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready'))
-                          ? `Completed by ${report.eventReports[activeEvent].completedBy || data.coachName}`
-                          : 'Mark this event complete when your review is done.'}
-                      </p>
-                    </div>
-                    <Button
-                      variant={(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'secondary' : 'default'}
-                      onClick={() =>
-                        updateReport((current) => {
-                          const currentEvent = current.eventReports[activeEvent]
-                          const isCurrentlyComplete = currentEvent.isComplete ?? (current.readiness === 'ready')
-                          const nextComplete = !isCurrentlyComplete
-                          return {
-                            ...current,
-                            eventReports: {
-                              ...current.eventReports,
-                              [activeEvent]: {
-                                ...currentEvent,
-                                isComplete: nextComplete,
-                                completedAt: nextComplete ? new Date().toISOString() : undefined,
-                                completedBy: nextComplete ? data.coachName : undefined,
-                              },
-                            },
-                          }
-                        })
-                      }
-                    >
-                      {(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'Mark Incomplete' : 'Mark Complete'}
-                    </Button>
                   </div>
                 </div>
               </TabsContent>
