@@ -410,7 +410,10 @@ export default function ReportsPage() {
 
                 <div>
                   <p className="mb-1 text-sm font-semibold">{activeEvent === 'Coachability' ? 'Coachability Fields' : 'Add Skill'}</p>
-                  <div className="rounded-xl border border-border bg-bg p-3">
+                  <div className="rounded-xl border-2 border-dashed border-primary/40 bg-surface/70 p-3 shadow-sm">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">
+                      {activeEvent === 'Coachability' ? 'Coachability Setup' : 'Skill Builder'}
+                    </p>
                     {OPTIONAL_SKILL_EVENTS.includes(activeEvent) ? (
                       <p className="mb-2 text-sm text-muted">Skills are optional for this event. Add only if you want to track them.</p>
                     ) : null}
