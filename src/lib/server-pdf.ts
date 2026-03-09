@@ -65,7 +65,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     page.drawText(eventName, { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
     y -= 16
     if (event.eventNotes) {
-      page.drawText(`Event notes: ${event.eventNotes}`, { x: 40, y, size: 10, font: bold })
+      page.drawText(`Notes: ${event.eventNotes}`, { x: 40, y, size: 10, font })
       y -= 14
     }
     for (const skill of event.skills) {
