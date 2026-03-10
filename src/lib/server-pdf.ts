@@ -128,7 +128,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const tableWidth = width - 60
   const headerHeight = 22
   const minRowHeight = 72
-  const lineHeight = 11
+  const lineHeight = 14
   const eventColWidth = 120
   const feedbackColWidth = 150
   const skillsColWidth = tableWidth - eventColWidth - feedbackColWidth
@@ -147,14 +147,14 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     const skillLines = skillRows.flatMap((row) => buildWrappedLines(row, skillsColWidth - 16, 9, font))
     const feedbackLines = feedbackRows.flatMap((row) => buildWrappedLines(row, feedbackColWidth - 16, 9, font))
     const contentLines = Math.max(skillLines.length, feedbackLines.length, 1)
-    const rowHeight = Math.max(minRowHeight, 20 + contentLines * lineHeight)
+    const rowHeight = Math.max(minRowHeight, 24 + contentLines * lineHeight)
 
     rowY -= rowHeight
     page.drawRectangle({ x: tableX, y: rowY, width: tableWidth, height: rowHeight, borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 1 })
     page.drawText(eventName, { x: tableX + 8, y: rowY + rowHeight - 16, size: 10, font: bold })
 
     for (let line = 0; line < contentLines; line += 1) {
-      const yLine = rowY + rowHeight - 16 - line * lineHeight
+      const yLine = rowY + rowHeight - 18 - line * lineHeight
       if (skillLines[line]) {
         page.drawText(skillLines[line], { x: tableX + eventColWidth + 8, y: yLine, size: 9, font })
       }
