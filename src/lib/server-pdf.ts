@@ -84,7 +84,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     const statusRows = skills.length
       ? skills.map((skill) => {
           const displayStatus = eventName === 'Coachability' ? normalizeCoachabilityRating(skill.status) : skill.status
-          return skill.notes?.trim() ? `${displayStatus} - ${skill.notes.trim()}` : displayStatus
+          return skill.notes?.trim() ? `${displayStatus}: ${skill.notes.trim()}` : displayStatus
         })
       : ['-']
 
@@ -130,10 +130,12 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const minRowHeight = 72
   const lineHeight = 14
   const eventColWidth = 120
-  const feedbackColWidth = 150
+  const feedbackColWidth = 175
   const skillsColWidth = tableWidth - eventColWidth - feedbackColWidth
 
   page.drawRectangle({ x: tableX, y: tableTop - headerHeight, width: tableWidth, height: headerHeight, color: rgb(0.95, 0.95, 0.95) })
+  page.drawLine({ start: { x: tableX + eventColWidth, y: tableTop }, end: { x: tableX + eventColWidth, y: tableTop - headerHeight }, thickness: 1, color: rgb(0.82, 0.82, 0.82) })
+  page.drawLine({ start: { x: tableX + eventColWidth + skillsColWidth, y: tableTop }, end: { x: tableX + eventColWidth + skillsColWidth, y: tableTop - headerHeight }, thickness: 1, color: rgb(0.82, 0.82, 0.82) })
   page.drawText('Event', { x: tableX + 8, y: tableTop - 15, size: 10, font: bold })
   page.drawText('Skills', { x: tableX + eventColWidth + 8, y: tableTop - 15, size: 10, font: bold })
   page.drawText('Feedback', { x: tableX + eventColWidth + skillsColWidth + 8, y: tableTop - 15, size: 10, font: bold })
@@ -151,6 +153,9 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
 
     rowY -= rowHeight
     page.drawRectangle({ x: tableX, y: rowY, width: tableWidth, height: rowHeight, borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 1 })
+    page.drawRectangle({ x: tableX + eventColWidth + skillsColWidth, y: rowY, width: feedbackColWidth, height: rowHeight, color: rgb(0.985, 0.985, 0.985) })
+    page.drawLine({ start: { x: tableX + eventColWidth, y: rowY + rowHeight }, end: { x: tableX + eventColWidth, y: rowY }, thickness: 1, color: rgb(0.85, 0.85, 0.85) })
+    page.drawLine({ start: { x: tableX + eventColWidth + skillsColWidth, y: rowY + rowHeight }, end: { x: tableX + eventColWidth + skillsColWidth, y: rowY }, thickness: 1, color: rgb(0.85, 0.85, 0.85) })
     page.drawText(eventName, { x: tableX + 8, y: rowY + rowHeight - 16, size: 10, font: bold })
 
     for (let line = 0; line < contentLines; line += 1) {
