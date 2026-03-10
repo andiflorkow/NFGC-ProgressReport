@@ -59,25 +59,6 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     return y - lines.length * lineHeight
   }
 
-  const buildWrappedLines = (text: string, maxWidth: number, size: number, fontRef: any) => {
-    const words = text.split(/\s+/).filter(Boolean)
-    if (!words.length) return ['']
-    const lines: string[] = []
-    let current = ''
-
-    for (const word of words) {
-      const candidate = current ? `${current} ${word}` : word
-      if (fontRef.widthOfTextAtSize(candidate, size) <= maxWidth) {
-        current = candidate
-      } else {
-        if (current) lines.push(current)
-        current = word
-      }
-    }
-    if (current) lines.push(current)
-    return lines
-  }
-
   const formatSkillRows = (skills: Array<{ name: string }>) => (skills.length ? skills.map((skill) => `• ${skill.name}`) : ['• None'])
 
   const formatFeedbackRows = (eventName: string, skills: Array<{ status: string; notes?: string }>, eventFeedback?: string) => {
@@ -123,68 +104,35 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const rawEventReports = report.eventReports as unknown as Record<string, Report['eventReports'][keyof Report['eventReports']]>
   const getEvent = (eventName: string) => rawEventReports[eventName] ?? (eventName === 'Coachability' ? rawEventReports.Behavior : undefined)
 
-  const tableX = 30
-  const tableTop = height - 120
-  const tableWidth = width - 60
-  const headerHeight = 22
-  const minRowHeight = 72
-  const lineHeight = 16
-  const eventColWidth = 120
-  const feedbackColWidth = 175
-  const skillsColWidth = tableWidth - eventColWidth - feedbackColWidth
-
-  page.drawRectangle({ x: tableX, y: tableTop - headerHeight, width: tableWidth, height: headerHeight, color: rgb(0.95, 0.95, 0.95) })
-  page.drawLine({ start: { x: tableX + eventColWidth, y: tableTop }, end: { x: tableX + eventColWidth, y: tableTop - headerHeight }, thickness: 1, color: rgb(0.82, 0.82, 0.82) })
-  page.drawLine({ start: { x: tableX + eventColWidth + skillsColWidth, y: tableTop }, end: { x: tableX + eventColWidth + skillsColWidth, y: tableTop - headerHeight }, thickness: 1, color: rgb(0.82, 0.82, 0.82) })
-  page.drawText('Event', { x: tableX + 8, y: tableTop - 15, size: 10, font: bold })
-  page.drawText('Skills', { x: tableX + eventColWidth + 8, y: tableTop - 15, size: 10, font: bold })
-  page.drawText('Feedback', { x: tableX + eventColWidth + skillsColWidth + 8, y: tableTop - 15, size: 10, font: bold })
-
-  let rowY = tableTop - headerHeight
-  for (const eventName of CORE_EVENTS) {
-    const event = getEvent(eventName)
-    const skillRows = formatSkillRows(event?.skills ?? [])
-    const feedbackRows = formatFeedbackRows(eventName, event?.skills ?? [], event?.eventNotes)
-
-    const skillLines = skillRows.flatMap((row, index) => {
-      const lines = buildWrappedLines(row, skillsColWidth - 16, 9, font)
-      return index < skillRows.length - 1 ? [...lines, ''] : lines
-    })
-    const feedbackLines = feedbackRows.flatMap((row, index) => {
-      const lines = buildWrappedLines(row, feedbackColWidth - 12, 9, font)
-      return index < feedbackRows.length - 1 ? [...lines, ''] : lines
-    })
-    const contentLines = Math.max(skillLines.length, feedbackLines.length, 1)
-    const rowHeight = Math.max(minRowHeight, 24 + contentLines * lineHeight)
-
-    rowY -= rowHeight
-    page.drawRectangle({ x: tableX, y: rowY, width: tableWidth, height: rowHeight, borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 1 })
-    page.drawLine({ start: { x: tableX + eventColWidth, y: rowY + rowHeight }, end: { x: tableX + eventColWidth, y: rowY }, thickness: 1, color: rgb(0.85, 0.85, 0.85) })
-    page.drawLine({ start: { x: tableX + eventColWidth + skillsColWidth, y: rowY + rowHeight }, end: { x: tableX + eventColWidth + skillsColWidth, y: rowY }, thickness: 1, color: rgb(0.85, 0.85, 0.85) })
-    page.drawText(eventName, { x: tableX + 8, y: rowY + rowHeight - 16, size: 10, font: bold })
-
-    for (let line = 0; line < contentLines; line += 1) {
-      const yLine = rowY + rowHeight - 18 - line * lineHeight
-      if (skillLines[line]) {
-        page.drawText(skillLines[line], { x: tableX + eventColWidth + 8, y: yLine, size: 9, font })
-      }
-      if (feedbackLines[line]) {
-        page.drawText(feedbackLines[line], { x: tableX + eventColWidth + skillsColWidth + 4, y: yLine, size: 9, font })
-      }
-    }
-  }
-
-  const cardsTop = rowY - 16
   const cardsX = 30
   const cardsWidth = width - 60
   const gap = 12
   const cardWidth = (cardsWidth - gap) / 2
-  const cardHeight = 110
+  const wideCardHeight = 64
+  const smallCardHeight = 120
 
-  const drawCard = (title: string, text: string, x: number, y: number) => {
-    page.drawRectangle({ x, y, width: cardWidth, height: cardHeight, borderColor: rgb(0.8, 0.8, 0.8), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) })
-    page.drawText(title, { x: x + 8, y: y + cardHeight - 16, size: 10, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
-    drawWrapped(text || 'None', x + 8, y + cardHeight - 30, cardWidth - 16, 9, 11, font, 6)
+  const drawWideCard = (title: string, skillsText: string, feedbackText: string, y: number) => {
+    page.drawRectangle({ x: cardsX, y, width: cardsWidth, height: wideCardHeight, borderColor: rgb(0.82, 0.82, 0.82), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) })
+    page.drawText(title, { x: cardsX + 8, y: y + wideCardHeight - 14, size: 10, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
+    drawWrapped(skillsText || '• None', cardsX + 120, y + wideCardHeight - 16, 210, 9, 11, font, 3)
+    drawWrapped(feedbackText || '• -', cardsX + 340, y + wideCardHeight - 16, cardsWidth - 348, 9, 11, font, 3)
+    page.drawLine({ start: { x: cardsX + 112, y: y + 6 }, end: { x: cardsX + 112, y: y + wideCardHeight - 6 }, thickness: 1, color: rgb(0.86, 0.86, 0.86) })
+    page.drawLine({ start: { x: cardsX + 332, y: y + 6 }, end: { x: cardsX + 332, y: y + wideCardHeight - 6 }, thickness: 1, color: rgb(0.86, 0.86, 0.86) })
+  }
+
+  const drawSmallCard = (title: string, text: string, x: number, y: number) => {
+    page.drawRectangle({ x, y, width: cardWidth, height: smallCardHeight, borderColor: rgb(0.8, 0.8, 0.8), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) })
+    page.drawText(title, { x: x + 8, y: y + smallCardHeight - 16, size: 10, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
+    drawWrapped(text || 'None', x + 8, y + smallCardHeight - 30, cardWidth - 16, 9, 11, font, 7)
+  }
+
+  let y = height - 128
+  for (const eventName of CORE_EVENTS) {
+    const event = getEvent(eventName)
+    const skillsText = formatSkillRows(event?.skills ?? []).join('  ')
+    const feedbackText = formatFeedbackRows(eventName, event?.skills ?? [], event?.eventNotes).join('  ')
+    drawWideCard(eventName, skillsText, feedbackText, y - wideCardHeight)
+    y -= wideCardHeight + 8
   }
 
   const strengthEvent = getEvent('Strength/Flexibility')
@@ -222,10 +170,11 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     .filter(Boolean)
     .join(' | ')
 
-  drawCard('Strength/Flexibility', strengthText, cardsX, cardsTop - cardHeight)
-  drawCard('Coachability', coachabilityText, cardsX + cardWidth + gap, cardsTop - cardHeight)
-  drawCard('Goals', goalsText, cardsX, cardsTop - cardHeight * 2 - gap)
-  drawCard('Additional Notes', additionalNotesText, cardsX + cardWidth + gap, cardsTop - cardHeight * 2 - gap)
+  const bottomTop = y - 8
+  drawSmallCard('Strength/Flexibility', strengthText, cardsX, bottomTop - smallCardHeight)
+  drawSmallCard('Coachability', coachabilityText, cardsX + cardWidth + gap, bottomTop - smallCardHeight)
+  drawSmallCard('Goals', goalsText, cardsX, bottomTop - smallCardHeight * 2 - gap)
+  drawSmallCard('Additional Notes', additionalNotesText, cardsX + cardWidth + gap, bottomTop - smallCardHeight * 2 - gap)
 
   page.drawText(`Do not reply to this email. Contact ${contactEmail} for any questions or concerns.`, { x: 30, y: 30, size: 9, font, color: rgb(0.4, 0.4, 0.4) })
 
