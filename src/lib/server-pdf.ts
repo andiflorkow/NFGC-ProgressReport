@@ -120,7 +120,9 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const bodyLineHeight = 12
   const titleGap = 6
   const rowGap = 4
-  const sectionGap = 16
+  const sectionGap = 12
+  const groupGap = 7
+  const spacerToken = '__SPACER__'
 
   let y = height - 42
 
@@ -131,14 +133,19 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   }
 
   const measureSectionHeight = (rows: string[], maxWidth: number) => {
-    const wrappedRows = rows.map((row) => wrapLines(row, maxWidth, bodySize, font))
-    const rowLineCount = wrappedRows.reduce((sum, lines) => sum + lines.length, 0)
-    return 12 + titleGap + rowLineCount * bodyLineHeight + (rows.length - 1) * rowGap + 12
+    let textHeight = 0
+    rows.forEach((row, index) => {
+      if (row === spacerToken) {
+        textHeight += groupGap
+      } else {
+        textHeight += wrapLines(row, maxWidth, bodySize, font).length * bodyLineHeight
+      }
+      if (index < rows.length - 1) textHeight += rowGap
+    })
+    return 12 + titleGap + textHeight + 12
   }
 
   const renderSection = (x: number, startY: number, maxWidth: number, title: string, rows: string[]) => {
-    const wrappedRows = rows.map((row) => wrapLines(row, maxWidth, bodySize, font))
-
     page.drawText(title, {
       x,
       y: startY,
@@ -148,10 +155,15 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     })
     let textY = startY - 12 - titleGap
 
-    for (const lines of wrappedRows) {
-      for (const line of lines) {
-        page.drawText(line, { x, y: textY, size: bodySize, font })
-        textY -= bodyLineHeight
+    for (const row of rows) {
+      if (row === spacerToken) {
+        textY -= groupGap
+      } else {
+        const lines = wrapLines(row, maxWidth, bodySize, font)
+        for (const line of lines) {
+          page.drawText(line, { x, y: textY, size: bodySize, font })
+          textY -= bodyLineHeight
+        }
       }
       textY -= rowGap
     }
@@ -172,7 +184,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     const rows: string[] = []
     if (eventNotes?.trim()) rows.push(eventNotes.trim())
     if (skillRows.length) {
-      if (rows.length) rows.push('')
+      if (rows.length) rows.push(spacerToken)
       rows.push('Skill Progress:')
       rows.push(...skillRows)
     }
@@ -214,7 +226,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     ...(report.reminders?.trim() ? [`Reminders: ${report.reminders.trim()}`] : []),
   ]
 
-  y -= 14
+  y -= 8
 
   const columnGap = 26
   const columnWidth = (contentWidth - columnGap) / 2
