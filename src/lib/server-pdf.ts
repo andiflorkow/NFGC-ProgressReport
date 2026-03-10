@@ -168,6 +168,17 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     y = renderSection(side, y, contentWidth, title, rows)
   }
 
+  const buildEventRows = (eventNotes?: string, skillRows: string[] = []) => {
+    const rows: string[] = []
+    if (eventNotes?.trim()) rows.push(eventNotes.trim())
+    if (skillRows.length) {
+      if (rows.length) rows.push('')
+      rows.push('Skill Progress:')
+      rows.push(...skillRows)
+    }
+    return rows
+  }
+
   drawCentered('North Florida Gymnastics', y, 18, bold, rgb(176 / 255, 18 / 255, 18 / 255))
   y -= 20
   drawCentered('Progress Report', y, 12, font, rgb(0.25, 0.25, 0.25))
@@ -180,26 +191,14 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
 
   for (const eventName of CORE_EVENTS) {
     const event = getEvent(eventName)
-    const rows: string[] = []
-    if (event?.eventNotes?.trim()) rows.push(`Feedback: ${event.eventNotes.trim()}`)
-    const skillRows = formatSkillRows(event?.skills ?? [])
-    if (skillRows.length) {
-      rows.push('Skill Progress:')
-      rows.push(...skillRows)
-    }
+    const rows = buildEventRows(event?.eventNotes, formatSkillRows(event?.skills ?? []))
     await drawSection(eventName, rows)
   }
 
   const strengthEvent = getEvent('Strength/Flexibility')
   const coachabilityEvent = getEvent('Coachability')
 
-  const strengthRows: string[] = []
-  if (strengthEvent?.eventNotes?.trim()) strengthRows.push(`Feedback: ${strengthEvent.eventNotes.trim()}`)
-  const strengthSkillRows = formatSkillRows(strengthEvent?.skills ?? [])
-  if (strengthSkillRows.length) {
-    strengthRows.push('Skill Progress:')
-    strengthRows.push(...strengthSkillRows)
-  }
+  const strengthRows = buildEventRows(strengthEvent?.eventNotes, formatSkillRows(strengthEvent?.skills ?? []))
   const coachabilityRows = formatCoachabilityRows(coachabilityEvent?.skills ?? [], coachabilityEvent?.eventNotes)
   const goalsRows = [
     ...(report.projectedLevel?.level ? [`Projected Level: ${report.projectedLevel.level}`] : []),
