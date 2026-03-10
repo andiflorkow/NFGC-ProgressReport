@@ -171,6 +171,7 @@ export default function ReportsPage() {
   const [activeEvent, setActiveEvent] = useState<EventName>('Vault')
   const [savedFlag, setSavedFlag] = useState('Saved')
   const [addSkillInput, setAddSkillInput] = useState<Record<EventName, string>>(emptyEventValues)
+  const [showSkillSuggestions, setShowSkillSuggestions] = useState(false)
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search)
@@ -447,18 +448,33 @@ export default function ReportsPage() {
                     <p className="text-sm text-muted">Respect, Work Ethic, and Training Habits are required coachability fields and use a 1-5 rating scale.</p>
                   ) : (
                     <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-                      <div>
+                      <div className="relative">
                         <Input
                           placeholder="Search or add skill..."
                           value={addSkillInput[activeEvent]}
                           onChange={(event) => setAddSkillInput((current) => ({ ...current, [activeEvent]: event.target.value }))}
-                          list={`skill-suggestions-${activeEvent}`}
+                          onFocus={() => setShowSkillSuggestions(true)}
+                          onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 120)}
                         />
-                        <datalist id={`skill-suggestions-${activeEvent}`}>
-                          {availableSuggestedSkills.map((skill) => (
-                            <option key={skill} value={skill} />
-                          ))}
-                        </datalist>
+                        {showSkillSuggestions ? (
+                          <div className="absolute z-10 mt-1 max-h-44 w-full overflow-auto rounded-lg border border-border bg-surface shadow-md">
+                            {availableSuggestedSkills
+                              .filter((skill) => skill.toLowerCase().includes(addSkillInput[activeEvent].toLowerCase().trim()))
+                              .map((skill) => (
+                                <button
+                                  key={skill}
+                                  type="button"
+                                  className="block w-full px-3 py-2 text-left text-sm hover:bg-bg"
+                                  onMouseDown={(event) => {
+                                    event.preventDefault()
+                                    setAddSkillInput((current) => ({ ...current, [activeEvent]: skill }))
+                                  }}
+                                >
+                                  {skill}
+                                </button>
+                              ))}
+                          </div>
+                        ) : null}
                       </div>
                       <Button
                         type="button"
