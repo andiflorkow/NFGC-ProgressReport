@@ -394,7 +394,7 @@ export default function ReportsPage() {
                   return (
                     <TabsTrigger key={event} value={event} className="h-8 gap-2 px-2 py-1 text-xs">
                       <span>{event}</span>
-                      <span className={isComplete ? 'text-green-700' : 'text-amber-700'}>{isComplete ? 'Done' : 'Open'}</span>
+                      <span className={isComplete ? 'text-green-700' : 'text-muted'}>{isComplete ? '✓' : ''}</span>
                     </TabsTrigger>
                   )
                 })}
@@ -473,6 +473,24 @@ export default function ReportsPage() {
                 </div>
 
                 <div>
+                  <p className="mb-1 text-sm font-semibold">Event Notes</p>
+                  <textarea
+                    className="min-h-[88px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
+                    placeholder="Optional notes for this event"
+                    value={report.eventReports[activeEvent].eventNotes || ''}
+                    onChange={(event) =>
+                      updateReport((current) => ({
+                        ...current,
+                        eventReports: {
+                          ...current.eventReports,
+                          [activeEvent]: { ...current.eventReports[activeEvent], eventNotes: event.target.value },
+                        },
+                      }))
+                    }
+                  />
+                </div>
+
+                <div>
                   <p className="mb-1 text-sm font-semibold">Skills</p>
                 </div>
 
@@ -518,7 +536,8 @@ export default function ReportsPage() {
                     </div>
 
                     <p className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-muted">Notes</p>
-                    <Input
+                    <textarea
+                      className="min-h-[84px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
                       placeholder={activeEvent === 'Coachability' ? `${skill.name} note (optional)` : 'Quick note (optional)'}
                       value={skill.notes || ''}
                       onChange={(event) =>
@@ -538,32 +557,13 @@ export default function ReportsPage() {
                     />
                   </div>
                 ))}
-
-                <div>
-                  <p className="mb-1 text-sm font-semibold">Event Notes</p>
-                  <div className="rounded-xl border border-border bg-bg p-3">
-                    <Input
-                      placeholder="Event notes (optional)"
-                      value={report.eventReports[activeEvent].eventNotes || ''}
-                      onChange={(event) =>
-                        updateReport((current) => ({
-                          ...current,
-                          eventReports: {
-                            ...current.eventReports,
-                            [activeEvent]: { ...current.eventReports[activeEvent], eventNotes: event.target.value },
-                          },
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
               </TabsContent>
             </Tabs>
 
             <div className="flex flex-wrap justify-between gap-2">
               <Button variant="secondary" onClick={() => setStep(1)}>Back</Button>
               <Button onClick={() => requiredStepTwoComplete ? setStep(3) : toast('Mark each event complete before continuing')}>
-                Next: Monthly Summary
+                Save & Continue
               </Button>
             </div>
           </CardContent>
