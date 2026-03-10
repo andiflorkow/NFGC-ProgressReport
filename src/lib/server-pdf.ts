@@ -59,6 +59,25 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     return y - lines.length * lineHeight
   }
 
+  const buildWrappedLines = (text: string, maxWidth: number, size: number, fontRef: any) => {
+    const words = text.split(/\s+/).filter(Boolean)
+    if (!words.length) return ['']
+    const lines: string[] = []
+    let current = ''
+
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word
+      if (fontRef.widthOfTextAtSize(candidate, size) <= maxWidth) {
+        current = candidate
+      } else {
+        if (current) lines.push(current)
+        current = word
+      }
+    }
+    if (current) lines.push(current)
+    return lines
+  }
+
   const formatSkillRows = (skills: Array<{ name: string }>) => (skills.length ? skills.map((skill) => `• ${skill.name}`) : ['• None'])
 
   const formatFeedbackRows = (eventName: string, skills: Array<{ status: string; notes?: string }>, eventFeedback?: string) => {
@@ -108,16 +127,38 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const cardsWidth = width - 60
   const gap = 12
   const cardWidth = (cardsWidth - gap) / 2
-  const wideCardHeight = 64
   const smallCardHeight = 120
 
-  const drawWideCard = (title: string, skillsText: string, feedbackText: string, y: number) => {
+  const drawWideCard = (title: string, skillRows: string[], feedbackRows: string[], topY: number) => {
+    const skillLines = skillRows.flatMap((row, index) => {
+      const lines = buildWrappedLines(row, 210, 9, font)
+      return index < skillRows.length - 1 ? [...lines, ''] : lines
+    })
+    const feedbackLines = feedbackRows.flatMap((row, index) => {
+      const lines = buildWrappedLines(row, cardsWidth - 348, 9, font)
+      return index < feedbackRows.length - 1 ? [...lines, ''] : lines
+    })
+
+    const contentLines = Math.max(skillLines.length, feedbackLines.length, 1)
+    const wideCardHeight = Math.max(64, 22 + contentLines * 11)
+    const y = topY - wideCardHeight
+
     page.drawRectangle({ x: cardsX, y, width: cardsWidth, height: wideCardHeight, borderColor: rgb(0.82, 0.82, 0.82), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) })
     page.drawText(title, { x: cardsX + 8, y: y + wideCardHeight - 14, size: 10, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
-    drawWrapped(skillsText || '• None', cardsX + 120, y + wideCardHeight - 16, 210, 9, 11, font, 3)
-    drawWrapped(feedbackText || '• -', cardsX + 340, y + wideCardHeight - 16, cardsWidth - 348, 9, 11, font, 3)
     page.drawLine({ start: { x: cardsX + 112, y: y + 6 }, end: { x: cardsX + 112, y: y + wideCardHeight - 6 }, thickness: 1, color: rgb(0.86, 0.86, 0.86) })
     page.drawLine({ start: { x: cardsX + 332, y: y + 6 }, end: { x: cardsX + 332, y: y + wideCardHeight - 6 }, thickness: 1, color: rgb(0.86, 0.86, 0.86) })
+
+    for (let i = 0; i < contentLines; i += 1) {
+      const yLine = y + wideCardHeight - 16 - i * 11
+      if (skillLines[i]) {
+        page.drawText(skillLines[i], { x: cardsX + 120, y: yLine, size: 9, font })
+      }
+      if (feedbackLines[i]) {
+        page.drawText(feedbackLines[i], { x: cardsX + 340, y: yLine, size: 9, font })
+      }
+    }
+
+    return topY - wideCardHeight - 8
   }
 
   const drawSmallCard = (title: string, text: string, x: number, y: number) => {
@@ -129,10 +170,9 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   let y = height - 128
   for (const eventName of CORE_EVENTS) {
     const event = getEvent(eventName)
-    const skillsText = formatSkillRows(event?.skills ?? []).join('  ')
-    const feedbackText = formatFeedbackRows(eventName, event?.skills ?? [], event?.eventNotes).join('  ')
-    drawWideCard(eventName, skillsText, feedbackText, y - wideCardHeight)
-    y -= wideCardHeight + 8
+    const skillRows = formatSkillRows(event?.skills ?? [])
+    const feedbackRows = formatFeedbackRows(eventName, event?.skills ?? [], event?.eventNotes)
+    y = drawWideCard(eventName, skillRows, feedbackRows, y)
   }
 
   const strengthEvent = getEvent('Strength/Flexibility')
