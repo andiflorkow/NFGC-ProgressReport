@@ -578,7 +578,22 @@ export default function ReportsPage() {
 
             <div className="flex flex-wrap justify-between gap-2">
               <Button variant="secondary" onClick={() => setStep(1)}>Back</Button>
-              <Button onClick={() => requiredStepTwoComplete ? setStep(3) : toast('Mark each event complete before continuing')}>
+              <Button onClick={() => {
+                const currentIndex = EVENTS.indexOf(activeEvent)
+                const hasNextEvent = currentIndex >= 0 && currentIndex < EVENTS.length - 1
+
+                if (hasNextEvent) {
+                  setActiveEvent(EVENTS[currentIndex + 1])
+                  return
+                }
+
+                if (requiredStepTwoComplete) {
+                  setStep(3)
+                  return
+                }
+
+                toast('Mark each event complete before continuing')
+              }}>
                 Save & Continue
               </Button>
             </div>

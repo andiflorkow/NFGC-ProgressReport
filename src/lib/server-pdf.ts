@@ -84,11 +84,11 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     const statusRows = skills.length
       ? skills.map((skill) => {
           const displayStatus = eventName === 'Coachability' ? normalizeCoachabilityRating(skill.status) : skill.status
-          return skill.notes?.trim() ? `${displayStatus}: ${skill.notes.trim()}` : displayStatus
+          return skill.notes?.trim() ? `• ${displayStatus}: ${skill.notes.trim()}` : `• ${displayStatus}`
         })
-      : ['-']
+      : ['• -']
 
-    if (eventFeedback?.trim()) statusRows.push(eventFeedback.trim())
+    if (eventFeedback?.trim()) statusRows.push(`• ${eventFeedback.trim()}`)
     return statusRows
   }
 
@@ -128,7 +128,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const tableWidth = width - 60
   const headerHeight = 22
   const minRowHeight = 72
-  const lineHeight = 14
+  const lineHeight = 16
   const eventColWidth = 120
   const feedbackColWidth = 175
   const skillsColWidth = tableWidth - eventColWidth - feedbackColWidth
@@ -146,14 +146,19 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     const skillRows = formatSkillRows(event?.skills ?? [])
     const feedbackRows = formatFeedbackRows(eventName, event?.skills ?? [], event?.eventNotes)
 
-    const skillLines = skillRows.flatMap((row) => buildWrappedLines(row, skillsColWidth - 16, 9, font))
-    const feedbackLines = feedbackRows.flatMap((row) => buildWrappedLines(row, feedbackColWidth - 16, 9, font))
+    const skillLines = skillRows.flatMap((row, index) => {
+      const lines = buildWrappedLines(row, skillsColWidth - 16, 9, font)
+      return index < skillRows.length - 1 ? [...lines, ''] : lines
+    })
+    const feedbackLines = feedbackRows.flatMap((row, index) => {
+      const lines = buildWrappedLines(row, feedbackColWidth - 12, 9, font)
+      return index < feedbackRows.length - 1 ? [...lines, ''] : lines
+    })
     const contentLines = Math.max(skillLines.length, feedbackLines.length, 1)
     const rowHeight = Math.max(minRowHeight, 24 + contentLines * lineHeight)
 
     rowY -= rowHeight
     page.drawRectangle({ x: tableX, y: rowY, width: tableWidth, height: rowHeight, borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 1 })
-    page.drawRectangle({ x: tableX + eventColWidth + skillsColWidth, y: rowY, width: feedbackColWidth, height: rowHeight, color: rgb(0.985, 0.985, 0.985) })
     page.drawLine({ start: { x: tableX + eventColWidth, y: rowY + rowHeight }, end: { x: tableX + eventColWidth, y: rowY }, thickness: 1, color: rgb(0.85, 0.85, 0.85) })
     page.drawLine({ start: { x: tableX + eventColWidth + skillsColWidth, y: rowY + rowHeight }, end: { x: tableX + eventColWidth + skillsColWidth, y: rowY }, thickness: 1, color: rgb(0.85, 0.85, 0.85) })
     page.drawText(eventName, { x: tableX + 8, y: rowY + rowHeight - 16, size: 10, font: bold })
@@ -164,7 +169,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
         page.drawText(skillLines[line], { x: tableX + eventColWidth + 8, y: yLine, size: 9, font })
       }
       if (feedbackLines[line]) {
-        page.drawText(feedbackLines[line], { x: tableX + eventColWidth + skillsColWidth + 8, y: yLine, size: 9, font })
+        page.drawText(feedbackLines[line], { x: tableX + eventColWidth + skillsColWidth + 4, y: yLine, size: 9, font })
       }
     }
   }
