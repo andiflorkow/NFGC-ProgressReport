@@ -120,6 +120,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const bodyLineHeight = 12
   const titleGap = 6
   const rowGap = 4
+  const sectionGap = 16
 
   let y = height - 42
 
@@ -155,7 +156,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
       textY -= rowGap
     }
 
-    return textY + rowGap - 16
+    return textY + rowGap - sectionGap
   }
 
   const drawSection = async (title: string, rows: string[]) => {
@@ -209,7 +210,9 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     report.reminders?.trim() ? `Reminders: ${report.reminders.trim()}` : 'Reminders: None',
   ]
 
-  const columnGap = 18
+  y -= 14
+
+  const columnGap = 26
   const columnWidth = (contentWidth - columnGap) / 2
   const leftStackHeight = measureSectionHeight(strengthRows, columnWidth) + measureSectionHeight(goalsRows, columnWidth)
   const rightStackHeight = measureSectionHeight(coachabilityRows, columnWidth) + measureSectionHeight(additionalRows, columnWidth)
@@ -221,6 +224,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
 
   const leftX = side
   const rightX = side + columnWidth + columnGap
+  const dualColumnsTopY = y
 
   let leftY = y
   leftY = renderSection(leftX, leftY, columnWidth, 'Strength/Flexibility', strengthRows)
@@ -229,6 +233,18 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   let rightY = y
   rightY = renderSection(rightX, rightY, columnWidth, 'Coachability', coachabilityRows)
   rightY = renderSection(rightX, rightY, columnWidth, 'Additional Notes', additionalRows)
+
+  const dividerX = leftX + columnWidth + columnGap / 2
+  const dividerTop = dualColumnsTopY + 2
+  const dividerBottom = Math.min(leftY, rightY) + 8
+  if (dividerTop - dividerBottom > 20) {
+    page.drawLine({
+      start: { x: dividerX, y: dividerTop },
+      end: { x: dividerX, y: dividerBottom },
+      thickness: 0.8,
+      color: rgb(0.82, 0.82, 0.82),
+    })
+  }
 
   y = Math.min(leftY, rightY)
 
