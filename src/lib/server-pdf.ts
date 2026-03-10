@@ -66,7 +66,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   }
 
   const formatSkillRows = (skills: Array<{ name: string; status: string; notes?: string }>) => {
-    if (!skills.length) return ['• No skills listed']
+    if (!skills.length) return []
     return skills.map((skill) => {
       const note = skill.notes?.trim() ? ` | ${skill.notes.trim()}` : ''
       return `• ${skill.name} | ${skill.status}${note}`
@@ -78,12 +78,12 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     eventFeedback?: string,
   ) => {
     const required = ['Respect', 'Work Ethic', 'Training Habits']
-    const rows = required.map((name) => {
+    const rows = required.flatMap((name) => {
       const item = skills.find((skill) => skill.name === name)
-      if (!item) return `• ${name}: Not rated`
+      if (!item) return []
       const rating = normalizeCoachabilityRating(item.status)
       const note = item.notes?.trim() ? ` | ${item.notes.trim()}` : ''
-      return `• ${name}: ${rating}${note}`
+      return [`• ${name}: ${rating}${note}`]
     })
 
     if (eventFeedback?.trim()) rows.push(`• ${eventFeedback.trim()}`)
@@ -160,6 +160,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   }
 
   const drawSection = async (title: string, rows: string[]) => {
+    if (!rows.length) return
     const sectionHeight = measureSectionHeight(rows, contentWidth)
     if (y - sectionHeight < 48) {
       await newPage()
@@ -179,46 +180,59 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
 
   for (const eventName of CORE_EVENTS) {
     const event = getEvent(eventName)
-    const rows = [
-      event?.eventNotes?.trim() ? `Feedback: ${event.eventNotes.trim()}` : 'Feedback: No event-specific feedback yet',
-      'Skills:',
-      ...formatSkillRows(event?.skills ?? []),
-    ]
+    const rows: string[] = []
+    if (event?.eventNotes?.trim()) rows.push(`Feedback: ${event.eventNotes.trim()}`)
+    const skillRows = formatSkillRows(event?.skills ?? [])
+    if (skillRows.length) {
+      rows.push('Skill Progress:')
+      rows.push(...skillRows)
+    }
     await drawSection(eventName, rows)
   }
 
   const strengthEvent = getEvent('Strength/Flexibility')
   const coachabilityEvent = getEvent('Coachability')
 
-  const strengthRows = [
-    strengthEvent?.eventNotes?.trim() ? `Feedback: ${strengthEvent.eventNotes.trim()}` : 'Feedback: No feedback yet',
-    'Skills:',
-    ...formatSkillRows(strengthEvent?.skills ?? []),
-  ]
+  const strengthRows: string[] = []
+  if (strengthEvent?.eventNotes?.trim()) strengthRows.push(`Feedback: ${strengthEvent.eventNotes.trim()}`)
+  const strengthSkillRows = formatSkillRows(strengthEvent?.skills ?? [])
+  if (strengthSkillRows.length) {
+    strengthRows.push('Skill Progress:')
+    strengthRows.push(...strengthSkillRows)
+  }
   const coachabilityRows = formatCoachabilityRows(coachabilityEvent?.skills ?? [], coachabilityEvent?.eventNotes)
   const goalsRows = [
-    report.projectedLevel?.level ? `Projected Level: ${report.projectedLevel.level}` : 'Projected Level: Not set',
-    report.projectedLevel?.notes?.trim() ? `Progress Note: ${report.projectedLevel.notes.trim()}` : 'Progress Note: Not provided',
+    ...(report.projectedLevel?.level ? [`Projected Level: ${report.projectedLevel.level}`] : []),
+    ...(report.projectedLevel?.notes?.trim() ? [`Progress Note: ${report.projectedLevel.notes.trim()}`] : []),
     ...report.goals
       .filter((goal) => goal.goal || goal.progressNote)
       .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | ${goal.progressNote || 'No progress note'}`),
   ]
   const additionalRows = [
-    report.generalNotes?.trim() ? `General: ${report.generalNotes.trim()}` : 'General: None',
-    report.attendance?.trim() ? `Attendance: ${report.attendance.trim()}` : 'Attendance: None',
-    report.injuries?.trim() ? `Injuries: ${report.injuries.trim()}` : 'Injuries: None',
-    report.reminders?.trim() ? `Reminders: ${report.reminders.trim()}` : 'Reminders: None',
+    ...(report.generalNotes?.trim() ? [`General: ${report.generalNotes.trim()}`] : []),
+    ...(report.attendance?.trim() ? [`Attendance: ${report.attendance.trim()}`] : []),
+    ...(report.injuries?.trim() ? [`Injuries: ${report.injuries.trim()}`] : []),
+    ...(report.reminders?.trim() ? [`Reminders: ${report.reminders.trim()}`] : []),
   ]
 
   y -= 14
 
   const columnGap = 26
   const columnWidth = (contentWidth - columnGap) / 2
-  const leftStackHeight = measureSectionHeight(strengthRows, columnWidth) + measureSectionHeight(goalsRows, columnWidth)
-  const rightStackHeight = measureSectionHeight(coachabilityRows, columnWidth) + measureSectionHeight(additionalRows, columnWidth)
+  const leftSections = [
+    { title: 'Strength/Flexibility', rows: strengthRows },
+    { title: 'Goals', rows: goalsRows },
+  ].filter((section) => section.rows.length)
+  const rightSections = [
+    { title: 'Coachability', rows: coachabilityRows },
+    { title: 'Additional Notes', rows: additionalRows },
+  ].filter((section) => section.rows.length)
+
+  const leftStackHeight = leftSections.reduce((sum, section) => sum + measureSectionHeight(section.rows, columnWidth), 0)
+  const rightStackHeight = rightSections.reduce((sum, section) => sum + measureSectionHeight(section.rows, columnWidth), 0)
   const dualColumnHeight = Math.max(leftStackHeight, rightStackHeight)
 
-  if (y - dualColumnHeight < 48) {
+  if (dualColumnHeight > 0 && y - dualColumnHeight < 48) {
     await newPage()
   }
 
@@ -227,12 +241,14 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const dualColumnsTopY = y
 
   let leftY = y
-  leftY = renderSection(leftX, leftY, columnWidth, 'Strength/Flexibility', strengthRows)
-  leftY = renderSection(leftX, leftY, columnWidth, 'Goals', goalsRows)
+  for (const section of leftSections) {
+    leftY = renderSection(leftX, leftY, columnWidth, section.title, section.rows)
+  }
 
   let rightY = y
-  rightY = renderSection(rightX, rightY, columnWidth, 'Coachability', coachabilityRows)
-  rightY = renderSection(rightX, rightY, columnWidth, 'Additional Notes', additionalRows)
+  for (const section of rightSections) {
+    rightY = renderSection(rightX, rightY, columnWidth, section.title, section.rows)
+  }
 
   const dividerX = leftX + columnWidth + columnGap / 2
   const dividerTop = dualColumnsTopY + 2
