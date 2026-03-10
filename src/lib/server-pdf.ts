@@ -129,74 +129,41 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     y = height - 42
   }
 
-  const drawSection = async (title: string, rows: string[], twoColumns = false) => {
-    const columnGap = 18
-    const columnWidth = twoColumns ? (contentWidth - columnGap) / 2 : contentWidth
-    const rowPairs: Array<[string, string]> = []
+  const measureSectionHeight = (rows: string[], maxWidth: number) => {
+    const wrappedRows = rows.map((row) => wrapLines(row, maxWidth, bodySize, font))
+    const rowLineCount = wrappedRows.reduce((sum, lines) => sum + lines.length, 0)
+    return 12 + titleGap + rowLineCount * bodyLineHeight + (rows.length - 1) * rowGap + 12
+  }
 
-    if (twoColumns) {
-      for (let i = 0; i < rows.length; i += 2) {
-        rowPairs.push([rows[i], rows[i + 1] ?? ''])
-      }
-    }
-
-    const wrappedRows = !twoColumns ? rows.map((row) => wrapLines(row, columnWidth, bodySize, font)) : []
-    const sectionHeight = !twoColumns
-      ? 12 + titleGap + wrappedRows.reduce((sum, lines) => sum + lines.length, 0) * bodyLineHeight + (rows.length - 1) * rowGap + 12
-      : 12 +
-        titleGap +
-        rowPairs.reduce((sum, [left, right]) => {
-          const leftLines = wrapLines(left, columnWidth, bodySize, font).length
-          const rightLines = right ? wrapLines(right, columnWidth, bodySize, font).length : 0
-          return sum + Math.max(leftLines, rightLines)
-        }, 0) *
-          bodyLineHeight +
-        (rowPairs.length - 1) * rowGap +
-        12
-
-    if (y - sectionHeight < 48) {
-      await newPage()
-    }
+  const renderSection = (x: number, startY: number, maxWidth: number, title: string, rows: string[]) => {
+    const wrappedRows = rows.map((row) => wrapLines(row, maxWidth, bodySize, font))
 
     page.drawText(title, {
-      x: side,
-      y,
+      x,
+      y: startY,
       size: 11,
       font: bold,
       color: rgb(176 / 255, 18 / 255, 18 / 255),
     })
-    y -= 12 + titleGap
+    let textY = startY - 12 - titleGap
 
-    let textY = y
-    if (!twoColumns) {
-      for (const lines of wrappedRows) {
-        for (const line of lines) {
-          page.drawText(line, { x: side, y: textY, size: bodySize, font })
-          textY -= bodyLineHeight
-        }
-        textY -= rowGap
+    for (const lines of wrappedRows) {
+      for (const line of lines) {
+        page.drawText(line, { x, y: textY, size: bodySize, font })
+        textY -= bodyLineHeight
       }
-    } else {
-      const rightX = side + columnWidth + columnGap
-      for (const [left, right] of rowPairs) {
-        const leftLines = wrapLines(left, columnWidth, bodySize, font)
-        const rightLines = right ? wrapLines(right, columnWidth, bodySize, font) : []
-        const pairHeight = Math.max(leftLines.length, rightLines.length) * bodyLineHeight
-
-        leftLines.forEach((line, index) => {
-          page.drawText(line, { x: side, y: textY - index * bodyLineHeight, size: bodySize, font })
-        })
-
-        rightLines.forEach((line, index) => {
-          page.drawText(line, { x: rightX, y: textY - index * bodyLineHeight, size: bodySize, font })
-        })
-
-        textY -= pairHeight + rowGap
-      }
+      textY -= rowGap
     }
 
-    y = textY + rowGap - 6
-    y -= 10
+    return textY + rowGap - 16
+  }
+
+  const drawSection = async (title: string, rows: string[]) => {
+    const sectionHeight = measureSectionHeight(rows, contentWidth)
+    if (y - sectionHeight < 48) {
+      await newPage()
+    }
+    y = renderSection(side, y, contentWidth, title, rows)
   }
 
   drawCentered('North Florida Gymnastics', y, 18, bold, rgb(176 / 255, 18 / 255, 18 / 255))
@@ -222,28 +189,48 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const strengthEvent = getEvent('Strength/Flexibility')
   const coachabilityEvent = getEvent('Coachability')
 
-  await drawSection('Strength/Flexibility', [
+  const strengthRows = [
     strengthEvent?.eventNotes?.trim() ? `Feedback: ${strengthEvent.eventNotes.trim()}` : 'Feedback: No feedback yet',
     'Skills:',
     ...formatSkillRows(strengthEvent?.skills ?? []),
-  ], true)
-
-  await drawSection('Coachability', formatCoachabilityRows(coachabilityEvent?.skills ?? [], coachabilityEvent?.eventNotes), true)
-
-  await drawSection('Goals', [
+  ]
+  const coachabilityRows = formatCoachabilityRows(coachabilityEvent?.skills ?? [], coachabilityEvent?.eventNotes)
+  const goalsRows = [
     report.projectedLevel?.level ? `Projected Level: ${report.projectedLevel.level}` : 'Projected Level: Not set',
     report.projectedLevel?.notes?.trim() ? `Progress Note: ${report.projectedLevel.notes.trim()}` : 'Progress Note: Not provided',
     ...report.goals
       .filter((goal) => goal.goal || goal.progressNote)
       .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | ${goal.progressNote || 'No progress note'}`),
-  ], true)
-
-  await drawSection('Additional Notes', [
+  ]
+  const additionalRows = [
     report.generalNotes?.trim() ? `General: ${report.generalNotes.trim()}` : 'General: None',
     report.attendance?.trim() ? `Attendance: ${report.attendance.trim()}` : 'Attendance: None',
     report.injuries?.trim() ? `Injuries: ${report.injuries.trim()}` : 'Injuries: None',
     report.reminders?.trim() ? `Reminders: ${report.reminders.trim()}` : 'Reminders: None',
-  ], true)
+  ]
+
+  const columnGap = 18
+  const columnWidth = (contentWidth - columnGap) / 2
+  const leftStackHeight = measureSectionHeight(strengthRows, columnWidth) + measureSectionHeight(goalsRows, columnWidth)
+  const rightStackHeight = measureSectionHeight(coachabilityRows, columnWidth) + measureSectionHeight(additionalRows, columnWidth)
+  const dualColumnHeight = Math.max(leftStackHeight, rightStackHeight)
+
+  if (y - dualColumnHeight < 48) {
+    await newPage()
+  }
+
+  const leftX = side
+  const rightX = side + columnWidth + columnGap
+
+  let leftY = y
+  leftY = renderSection(leftX, leftY, columnWidth, 'Strength/Flexibility', strengthRows)
+  leftY = renderSection(leftX, leftY, columnWidth, 'Goals', goalsRows)
+
+  let rightY = y
+  rightY = renderSection(rightX, rightY, columnWidth, 'Coachability', coachabilityRows)
+  rightY = renderSection(rightX, rightY, columnWidth, 'Additional Notes', additionalRows)
+
+  y = Math.min(leftY, rightY)
 
   page.drawText(`Do not reply to this email. Contact ${contactEmail} for any questions or concerns.`, { x: 30, y: 30, size: 9, font, color: rgb(0.4, 0.4, 0.4) })
 
