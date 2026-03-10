@@ -59,7 +59,26 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     return y - lines.length * lineHeight
   }
 
-  const formatSkillRows = (skills: Array<{ name: string }>) => (skills.length ? skills.map((skill) => skill.name) : ['None'])
+  const buildWrappedLines = (text: string, maxWidth: number, size: number, fontRef: any) => {
+    const words = text.split(/\s+/).filter(Boolean)
+    if (!words.length) return ['']
+    const lines: string[] = []
+    let current = ''
+
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word
+      if (fontRef.widthOfTextAtSize(candidate, size) <= maxWidth) {
+        current = candidate
+      } else {
+        if (current) lines.push(current)
+        current = word
+      }
+    }
+    if (current) lines.push(current)
+    return lines
+  }
+
+  const formatSkillRows = (skills: Array<{ name: string }>) => (skills.length ? skills.map((skill) => `• ${skill.name}`) : ['• None'])
 
   const formatFeedbackRows = (eventName: string, skills: Array<{ status: string; notes?: string }>, eventFeedback?: string) => {
     const statusRows = skills.length
@@ -108,7 +127,8 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const tableTop = height - 120
   const tableWidth = width - 60
   const headerHeight = 22
-  const rowHeight = 92
+  const minRowHeight = 72
+  const lineHeight = 11
   const eventColWidth = 120
   const feedbackColWidth = 150
   const skillsColWidth = tableWidth - eventColWidth - feedbackColWidth
@@ -121,21 +141,25 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   let rowY = tableTop - headerHeight
   for (const eventName of CORE_EVENTS) {
     const event = getEvent(eventName)
-    rowY -= rowHeight
-    page.drawRectangle({ x: tableX, y: rowY, width: tableWidth, height: rowHeight, borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 1 })
-    page.drawText(eventName, { x: tableX + 8, y: rowY + rowHeight - 18, size: 10, font: bold })
-
     const skillRows = formatSkillRows(event?.skills ?? [])
     const feedbackRows = formatFeedbackRows(eventName, event?.skills ?? [], event?.eventNotes)
-    const maxLines = Math.min(Math.max(skillRows.length, feedbackRows.length), 5)
 
-    for (let line = 0; line < maxLines; line += 1) {
-      const yLine = rowY + rowHeight - 16 - line * 12
-      if (skillRows[line]) {
-        page.drawText(skillRows[line], { x: tableX + eventColWidth + 8, y: yLine, size: 9, font })
+    const skillLines = skillRows.flatMap((row) => buildWrappedLines(row, skillsColWidth - 16, 9, font))
+    const feedbackLines = feedbackRows.flatMap((row) => buildWrappedLines(row, feedbackColWidth - 16, 9, font))
+    const contentLines = Math.max(skillLines.length, feedbackLines.length, 1)
+    const rowHeight = Math.max(minRowHeight, 20 + contentLines * lineHeight)
+
+    rowY -= rowHeight
+    page.drawRectangle({ x: tableX, y: rowY, width: tableWidth, height: rowHeight, borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 1 })
+    page.drawText(eventName, { x: tableX + 8, y: rowY + rowHeight - 16, size: 10, font: bold })
+
+    for (let line = 0; line < contentLines; line += 1) {
+      const yLine = rowY + rowHeight - 16 - line * lineHeight
+      if (skillLines[line]) {
+        page.drawText(skillLines[line], { x: tableX + eventColWidth + 8, y: yLine, size: 9, font })
       }
-      if (feedbackRows[line]) {
-        page.drawText(feedbackRows[line], { x: tableX + eventColWidth + skillsColWidth + 8, y: yLine, size: 9, font })
+      if (feedbackLines[line]) {
+        page.drawText(feedbackLines[line], { x: tableX + eventColWidth + skillsColWidth + 8, y: yLine, size: 9, font })
       }
     }
   }
