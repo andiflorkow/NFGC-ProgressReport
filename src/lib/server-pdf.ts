@@ -119,7 +119,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const bodySize = 9
   const bodyLineHeight = 12
   const titleGap = 6
-  const rowGap = 4
+  const rowGap = 5
   const sectionGap = 12
   const groupGap = 7
   const spacerToken = '__SPACER__'
@@ -226,7 +226,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     ...(report.reminders?.trim() ? [`Reminders: ${report.reminders.trim()}`] : []),
   ]
 
-  y -= 8
+  y -= 22
 
   const columnGap = 26
   const columnWidth = (contentWidth - columnGap) / 2
