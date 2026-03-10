@@ -6,10 +6,9 @@ import { formatReportMonth } from './utils'
 
 export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEmail: string) {
   const pdf = await PDFDocument.create()
-  let page = pdf.addPage([595, 842])
+  const page = pdf.addPage([595, 842])
   const { width, height } = page.getSize()
-  const EVENT_ORDER = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Coachability'] as const
-  const COMPACT_EVENTS = new Set(['Vault', 'Bars', 'Beam', 'Floor'])
+  const CORE_EVENTS = ['Vault', 'Bars', 'Beam', 'Floor'] as const
 
   const normalizeCoachabilityRating = (status?: string) => {
     if (!status) return '3/5'
@@ -20,6 +19,54 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     if (status === 'Needs Support') return '2/5'
     if (status === 'Not Started') return '1/5'
     return status
+  }
+
+  const drawCentered = (text: string, y: number, size: number, fontRef: any, color = rgb(0, 0, 0)) => {
+    const textWidth = fontRef.widthOfTextAtSize(text, size)
+    page.drawText(text, { x: (width - textWidth) / 2, y, size, font: fontRef, color })
+  }
+
+  const drawWrapped = (
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    size: number,
+    lineHeight: number,
+    fontRef: any,
+    maxLines = 6,
+  ) => {
+    const words = text.split(/\s+/).filter(Boolean)
+    const lines: string[] = []
+    let current = ''
+
+    for (const word of words) {
+      const candidate = current ? `${current} ${word}` : word
+      if (fontRef.widthOfTextAtSize(candidate, size) <= maxWidth) {
+        current = candidate
+      } else {
+        if (current) lines.push(current)
+        current = word
+        if (lines.length >= maxLines) break
+      }
+    }
+    if (current && lines.length < maxLines) lines.push(current)
+
+    lines.forEach((line, index) => {
+      page.drawText(line, { x, y: y - index * lineHeight, size, font: fontRef })
+    })
+
+    return y - lines.length * lineHeight
+  }
+
+  const formatSkills = (eventName: string, skills: Array<{ name: string; status: string }>) => {
+    if (!skills.length) return 'None'
+    return skills
+      .map((skill) => {
+        const displayStatus = eventName === 'Coachability' ? normalizeCoachabilityRating(skill.status) : skill.status
+        return `${skill.name} (${displayStatus})`
+      })
+      .join('; ')
   }
 
   const drawHeader = async () => {
@@ -46,94 +93,93 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const font = await pdf.embedFont(StandardFonts.Helvetica)
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
 
-  let y = height - 40
-  page.drawText('NFGC Progress Report', { x: 30, y, size: 16, font: bold })
-  y -= 20
-  page.drawText(`Gymnast: ${gymnast.name} | Level ${gymnast.level} | ${formatReportMonth(report.month)}`, { x: 30, y, size: 11, font })
-  y -= 20
+  drawCentered('North Florida Gymnastics', height - 52, 18, bold, rgb(176 / 255, 18 / 255, 18 / 255))
+  drawCentered('Progress Report', height - 72, 12, font, rgb(0.25, 0.25, 0.25))
+  drawCentered(`Gymnast: ${gymnast.name} | Level ${gymnast.level} | ${formatReportMonth(report.month)}`, height - 92, 10, font)
 
   const rawEventReports = report.eventReports as unknown as Record<string, Report['eventReports'][keyof Report['eventReports']]>
+  const getEvent = (eventName: string) => rawEventReports[eventName] ?? (eventName === 'Coachability' ? rawEventReports.Behavior : undefined)
 
-  for (const eventName of EVENT_ORDER) {
-    const event = rawEventReports[eventName] ?? (eventName === 'Coachability' ? rawEventReports.Behavior : undefined)
-    if (!event) continue
-    if (y < 120) {
-      page = pdf.addPage([595, 842])
-      await drawHeader()
-      y = height - 40
-    }
-    page.drawText(eventName, { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
-    y -= 16
-    if (event.eventNotes) {
-      page.drawText(`Notes: ${event.eventNotes}`, { x: 40, y, size: 10, font })
-      y -= 14
-    }
-    for (const skill of event.skills) {
-      if (y < 80) break
-      const displayStatus = eventName === 'Coachability' ? normalizeCoachabilityRating(skill.status) : skill.status
-      page.drawText(`• ${skill.name}: ${displayStatus}`, { x: 40, y, size: 10, font })
-      y -= 12
-      if (skill.notes) {
-        page.drawText(`  Note: ${skill.notes}`, { x: 50, y, size: 9, font })
-        y -= 11
-      }
-    }
-    y -= COMPACT_EVENTS.has(eventName) ? 8 : 18
+  const tableX = 30
+  const tableTop = height - 120
+  const tableWidth = width - 60
+  const headerHeight = 22
+  const rowHeight = 78
+  const eventColWidth = 120
+  const feedbackColWidth = 150
+  const skillsColWidth = tableWidth - eventColWidth - feedbackColWidth
+
+  page.drawRectangle({ x: tableX, y: tableTop - headerHeight, width: tableWidth, height: headerHeight, color: rgb(0.95, 0.95, 0.95) })
+  page.drawText('Event', { x: tableX + 8, y: tableTop - 15, size: 10, font: bold })
+  page.drawText('Skills', { x: tableX + eventColWidth + 8, y: tableTop - 15, size: 10, font: bold })
+  page.drawText('Feedback', { x: tableX + eventColWidth + skillsColWidth + 8, y: tableTop - 15, size: 10, font: bold })
+
+  let rowY = tableTop - headerHeight
+  for (const eventName of CORE_EVENTS) {
+    const event = getEvent(eventName)
+    rowY -= rowHeight
+    page.drawRectangle({ x: tableX, y: rowY, width: tableWidth, height: rowHeight, borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 1 })
+    page.drawText(eventName, { x: tableX + 8, y: rowY + rowHeight - 18, size: 10, font: bold })
+
+    const skillsText = formatSkills(eventName, event?.skills ?? [])
+    drawWrapped(skillsText, tableX + eventColWidth + 8, rowY + rowHeight - 16, skillsColWidth - 16, 9, 11, font, 5)
+
+    const feedbackText = event?.eventNotes?.trim() || 'No notes'
+    drawWrapped(feedbackText, tableX + eventColWidth + skillsColWidth + 8, rowY + rowHeight - 16, feedbackColWidth - 16, 9, 11, font, 5)
   }
 
-  if (y < 120) {
-    page = pdf.addPage([595, 842])
-    await drawHeader()
-    y = height - 40
-  }
-  page.drawText('Goals', { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
-  y -= 16
+  const cardsTop = rowY - 16
+  const cardsX = 30
+  const cardsWidth = width - 60
+  const gap = 12
+  const cardWidth = (cardsWidth - gap) / 2
+  const cardHeight = 110
 
-  if (report.projectedLevel?.level) {
-    page.drawText(`Current Projected Level: ${report.projectedLevel.level}`, { x: 30, y, size: 10, font })
-    y -= 12
-  }
-  if (report.projectedLevel?.notes) {
-    page.drawText(`Projected level notes: ${report.projectedLevel.notes}`, { x: 30, y, size: 10, font })
-    y -= 12
+  const drawCard = (title: string, text: string, x: number, y: number) => {
+    page.drawRectangle({ x, y, width: cardWidth, height: cardHeight, borderColor: rgb(0.8, 0.8, 0.8), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) })
+    page.drawText(title, { x: x + 8, y: y + cardHeight - 16, size: 10, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
+    drawWrapped(text || 'None', x + 8, y + cardHeight - 30, cardWidth - 16, 9, 11, font, 6)
   }
 
-  for (const [index, goal] of report.goals.entries()) {
-    if (!goal.goal && !goal.progressNote) continue
-    page.drawText(`Goal ${index + 1}: ${goal.goal || 'N/A'}`, { x: 30, y, size: 10, font })
-    y -= 12
-    page.drawText(`Progress: ${goal.progressNote || 'N/A'}`, { x: 40, y, size: 10, font })
-    y -= 12
-  }
-  y -= 18
+  const strengthEvent = getEvent('Strength/Flexibility')
+  const coachabilityEvent = getEvent('Coachability')
+  const goalsText = [
+    report.projectedLevel?.level ? `Projected Level: ${report.projectedLevel.level}` : '',
+    report.projectedLevel?.notes ? `Projected Level Notes: ${report.projectedLevel.notes}` : '',
+    ...report.goals
+      .filter((goal) => goal.goal || goal.progressNote)
+      .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | Progress: ${goal.progressNote || 'N/A'}`),
+  ]
+    .filter(Boolean)
+    .join(' | ')
 
-  const notesRows = [
-    { label: 'Notes', value: report.generalNotes?.trim() || '' },
-    { label: 'Attendance', value: report.attendance?.trim() || '' },
-    { label: 'Injuries', value: report.injuries?.trim() || '' },
-    { label: 'Reminders', value: report.reminders?.trim() || '' },
-  ].filter((row) => row.value)
+  const additionalNotesText = [
+    report.generalNotes?.trim() ? `Notes: ${report.generalNotes.trim()}` : '',
+    report.attendance?.trim() ? `Attendance: ${report.attendance.trim()}` : '',
+    report.injuries?.trim() ? `Injuries: ${report.injuries.trim()}` : '',
+    report.reminders?.trim() ? `Reminders: ${report.reminders.trim()}` : '',
+  ]
+    .filter(Boolean)
+    .join(' | ')
 
-  if (notesRows.length) {
-    if (y < 120) {
-      page = pdf.addPage([595, 842])
-      await drawHeader()
-      y = height - 40
-    }
-    page.drawText('Notes', { x: 30, y, size: 12, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
-    y -= 16
+  const strengthText = [
+    strengthEvent?.eventNotes?.trim() ? `Notes: ${strengthEvent.eventNotes.trim()}` : '',
+    formatSkills('Strength/Flexibility', strengthEvent?.skills ?? []),
+  ]
+    .filter(Boolean)
+    .join(' | ')
 
-    for (const row of notesRows) {
-      if (y < 80) {
-        page = pdf.addPage([595, 842])
-        await drawHeader()
-        y = height - 40
-      }
-      page.drawText(`${row.label}: ${row.value}`, { x: 30, y, size: 10, font })
-      y -= 12
-    }
-    y -= 18
-  }
+  const coachabilityText = [
+    coachabilityEvent?.eventNotes?.trim() ? `Notes: ${coachabilityEvent.eventNotes.trim()}` : '',
+    formatSkills('Coachability', coachabilityEvent?.skills ?? []),
+  ]
+    .filter(Boolean)
+    .join(' | ')
+
+  drawCard('Strength/Flexibility', strengthText, cardsX, cardsTop - cardHeight)
+  drawCard('Coachability', coachabilityText, cardsX + cardWidth + gap, cardsTop - cardHeight)
+  drawCard('Goals', goalsText, cardsX, cardsTop - cardHeight * 2 - gap)
+  drawCard('Additional Notes', additionalNotesText, cardsX + cardWidth + gap, cardsTop - cardHeight * 2 - gap)
 
   page.drawText(`Do not reply to this email. Contact ${contactEmail} for any questions or concerns.`, { x: 30, y: 30, size: 9, font, color: rgb(0.4, 0.4, 0.4) })
 
