@@ -6,7 +6,7 @@ import { formatReportMonth } from './utils'
 
 export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEmail: string) {
   const pdf = await PDFDocument.create()
-  const page = pdf.addPage([595, 842])
+  let page = pdf.addPage([595, 842])
   const { width, height } = page.getSize()
   const CORE_EVENTS = ['Vault', 'Bars', 'Beam', 'Floor'] as const
 
@@ -26,40 +26,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     page.drawText(text, { x: (width - textWidth) / 2, y, size, font: fontRef, color })
   }
 
-  const drawWrapped = (
-    text: string,
-    x: number,
-    y: number,
-    maxWidth: number,
-    size: number,
-    lineHeight: number,
-    fontRef: any,
-    maxLines = 6,
-  ) => {
-    const words = text.split(/\s+/).filter(Boolean)
-    const lines: string[] = []
-    let current = ''
-
-    for (const word of words) {
-      const candidate = current ? `${current} ${word}` : word
-      if (fontRef.widthOfTextAtSize(candidate, size) <= maxWidth) {
-        current = candidate
-      } else {
-        if (current) lines.push(current)
-        current = word
-        if (lines.length >= maxLines) break
-      }
-    }
-    if (current && lines.length < maxLines) lines.push(current)
-
-    lines.forEach((line, index) => {
-      page.drawText(line, { x, y: y - index * lineHeight, size, font: fontRef })
-    })
-
-    return y - lines.length * lineHeight
-  }
-
-  const buildWrappedLines = (text: string, maxWidth: number, size: number, fontRef: any) => {
+  const wrapLines = (text: string, maxWidth: number, size: number, fontRef: any) => {
     const words = text.split(/\s+/).filter(Boolean)
     if (!words.length) return ['']
     const lines: string[] = []
@@ -70,7 +37,9 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
       if (fontRef.widthOfTextAtSize(candidate, size) <= maxWidth) {
         current = candidate
       } else {
-        if (current) lines.push(current)
+        if (current) {
+          lines.push(current)
+        }
         current = word
       }
     }
@@ -78,18 +47,47 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     return lines
   }
 
-  const formatSkillRows = (skills: Array<{ name: string }>) => (skills.length ? skills.map((skill) => `• ${skill.name}`) : ['• None'])
+  const drawWrapped = (
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    size: number,
+    lineHeight: number,
+    fontRef: any,
+  ) => {
+    const lines = wrapLines(text, maxWidth, size, fontRef)
 
-  const formatFeedbackRows = (eventName: string, skills: Array<{ status: string; notes?: string }>, eventFeedback?: string) => {
-    const statusRows = skills.length
-      ? skills.map((skill) => {
-          const displayStatus = eventName === 'Coachability' ? normalizeCoachabilityRating(skill.status) : skill.status
-          return skill.notes?.trim() ? `• ${displayStatus}: ${skill.notes.trim()}` : `• ${displayStatus}`
-        })
-      : ['• -']
+    lines.forEach((line, index) => {
+      page.drawText(line, { x, y: y - index * lineHeight, size, font: fontRef })
+    })
 
-    if (eventFeedback?.trim()) statusRows.push(`• ${eventFeedback.trim()}`)
-    return statusRows
+    return y - lines.length * lineHeight
+  }
+
+  const formatSkillRows = (skills: Array<{ name: string; status: string; notes?: string }>) => {
+    if (!skills.length) return ['• No skills listed']
+    return skills.map((skill) => {
+      const note = skill.notes?.trim() ? ` | ${skill.notes.trim()}` : ''
+      return `• ${skill.name} | ${skill.status}${note}`
+    })
+  }
+
+  const formatCoachabilityRows = (
+    skills: Array<{ name: string; status: string; notes?: string }>,
+    eventFeedback?: string,
+  ) => {
+    const required = ['Respect', 'Work Ethic', 'Training Habits']
+    const rows = required.map((name) => {
+      const item = skills.find((skill) => skill.name === name)
+      if (!item) return `• ${name}: Not rated`
+      const rating = normalizeCoachabilityRating(item.status)
+      const note = item.notes?.trim() ? ` | ${item.notes.trim()}` : ''
+      return `• ${name}: ${rating}${note}`
+    })
+
+    if (eventFeedback?.trim()) rows.push(`• ${eventFeedback.trim()}`)
+    return rows
   }
 
   const drawHeader = async () => {
@@ -116,105 +114,107 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const font = await pdf.embedFont(StandardFonts.Helvetica)
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
 
-  drawCentered('North Florida Gymnastics', height - 52, 18, bold, rgb(176 / 255, 18 / 255, 18 / 255))
-  drawCentered('Progress Report', height - 72, 12, font, rgb(0.25, 0.25, 0.25))
-  drawCentered(`Gymnast: ${gymnast.name} | Level ${gymnast.level} | ${formatReportMonth(report.month)}`, height - 92, 10, font)
+  const side = 30
+  const cardWidth = width - side * 2
+  const bodySize = 9
+  const bodyLineHeight = 12
+  const cardPadding = 10
+  const titleGap = 8
+  const rowGap = 4
+
+  let y = height - 42
+
+  const newPage = async () => {
+    page = pdf.addPage([595, 842])
+    await drawHeader()
+    y = height - 42
+  }
+
+  const drawCardSection = async (title: string, rows: string[]) => {
+    const wrappedRows = rows.map((row) => wrapLines(row, cardWidth - cardPadding * 2, bodySize, font))
+    const rowLineCount = wrappedRows.reduce((sum, lines) => sum + lines.length, 0)
+    const cardHeight = cardPadding + 12 + titleGap + rowLineCount * bodyLineHeight + (rows.length - 1) * rowGap + cardPadding
+
+    if (y - cardHeight < 48) {
+      await newPage()
+    }
+
+    const cardY = y - cardHeight
+    page.drawRectangle({
+      x: side,
+      y: cardY,
+      width: cardWidth,
+      height: cardHeight,
+      borderColor: rgb(0.82, 0.82, 0.82),
+      borderWidth: 1,
+      color: rgb(0.99, 0.99, 0.99),
+    })
+
+    page.drawText(title, {
+      x: side + cardPadding,
+      y: cardY + cardHeight - cardPadding - 2,
+      size: 11,
+      font: bold,
+      color: rgb(176 / 255, 18 / 255, 18 / 255),
+    })
+
+    let textY = cardY + cardHeight - cardPadding - 14 - titleGap
+    for (const lines of wrappedRows) {
+      for (const line of lines) {
+        page.drawText(line, { x: side + cardPadding, y: textY, size: bodySize, font })
+        textY -= bodyLineHeight
+      }
+      textY -= rowGap
+    }
+
+    y = cardY - 10
+  }
+
+  drawCentered('North Florida Gymnastics', y, 18, bold, rgb(176 / 255, 18 / 255, 18 / 255))
+  y -= 20
+  drawCentered('Progress Report', y, 12, font, rgb(0.25, 0.25, 0.25))
+  y -= 16
+  drawCentered(`Gymnast: ${gymnast.name} | Level ${gymnast.level} | ${formatReportMonth(report.month)}`, y, 10, font)
+  y -= 24
 
   const rawEventReports = report.eventReports as unknown as Record<string, Report['eventReports'][keyof Report['eventReports']]>
   const getEvent = (eventName: string) => rawEventReports[eventName] ?? (eventName === 'Coachability' ? rawEventReports.Behavior : undefined)
 
-  const cardsX = 30
-  const cardsWidth = width - 60
-  const gap = 12
-  const cardWidth = (cardsWidth - gap) / 2
-  const smallCardHeight = 120
-
-  const drawWideCard = (title: string, skillRows: string[], feedbackRows: string[], topY: number) => {
-    const skillLines = skillRows.flatMap((row, index) => {
-      const lines = buildWrappedLines(row, 210, 9, font)
-      return index < skillRows.length - 1 ? [...lines, ''] : lines
-    })
-    const feedbackLines = feedbackRows.flatMap((row, index) => {
-      const lines = buildWrappedLines(row, cardsWidth - 348, 9, font)
-      return index < feedbackRows.length - 1 ? [...lines, ''] : lines
-    })
-
-    const contentLines = Math.max(skillLines.length, feedbackLines.length, 1)
-    const wideCardHeight = Math.max(64, 22 + contentLines * 11)
-    const y = topY - wideCardHeight
-
-    page.drawRectangle({ x: cardsX, y, width: cardsWidth, height: wideCardHeight, borderColor: rgb(0.82, 0.82, 0.82), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) })
-    page.drawText(title, { x: cardsX + 8, y: y + wideCardHeight - 14, size: 10, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
-    page.drawLine({ start: { x: cardsX + 112, y: y + 6 }, end: { x: cardsX + 112, y: y + wideCardHeight - 6 }, thickness: 1, color: rgb(0.86, 0.86, 0.86) })
-    page.drawLine({ start: { x: cardsX + 332, y: y + 6 }, end: { x: cardsX + 332, y: y + wideCardHeight - 6 }, thickness: 1, color: rgb(0.86, 0.86, 0.86) })
-
-    for (let i = 0; i < contentLines; i += 1) {
-      const yLine = y + wideCardHeight - 16 - i * 11
-      if (skillLines[i]) {
-        page.drawText(skillLines[i], { x: cardsX + 120, y: yLine, size: 9, font })
-      }
-      if (feedbackLines[i]) {
-        page.drawText(feedbackLines[i], { x: cardsX + 340, y: yLine, size: 9, font })
-      }
-    }
-
-    return topY - wideCardHeight - 8
-  }
-
-  const drawSmallCard = (title: string, text: string, x: number, y: number) => {
-    page.drawRectangle({ x, y, width: cardWidth, height: smallCardHeight, borderColor: rgb(0.8, 0.8, 0.8), borderWidth: 1, color: rgb(0.99, 0.99, 0.99) })
-    page.drawText(title, { x: x + 8, y: y + smallCardHeight - 16, size: 10, font: bold, color: rgb(176 / 255, 18 / 255, 18 / 255) })
-    drawWrapped(text || 'None', x + 8, y + smallCardHeight - 30, cardWidth - 16, 9, 11, font, 7)
-  }
-
-  let y = height - 128
   for (const eventName of CORE_EVENTS) {
     const event = getEvent(eventName)
-    const skillRows = formatSkillRows(event?.skills ?? [])
-    const feedbackRows = formatFeedbackRows(eventName, event?.skills ?? [], event?.eventNotes)
-    y = drawWideCard(eventName, skillRows, feedbackRows, y)
+    const rows = [
+      event?.eventNotes?.trim() ? `Feedback: ${event.eventNotes.trim()}` : 'Feedback: No event-specific feedback yet',
+      'Skills:',
+      ...formatSkillRows(event?.skills ?? []),
+    ]
+    await drawCardSection(eventName, rows)
   }
 
   const strengthEvent = getEvent('Strength/Flexibility')
   const coachabilityEvent = getEvent('Coachability')
-  const goalsText = [
-    report.projectedLevel?.level ? `Projected Level: ${report.projectedLevel.level}` : '',
-    report.projectedLevel?.notes ? `Projected Level Detail: ${report.projectedLevel.notes}` : '',
+
+  await drawCardSection('Strength/Flexibility', [
+    strengthEvent?.eventNotes?.trim() ? `Feedback: ${strengthEvent.eventNotes.trim()}` : 'Feedback: No feedback yet',
+    'Skills:',
+    ...formatSkillRows(strengthEvent?.skills ?? []),
+  ])
+
+  await drawCardSection('Coachability', formatCoachabilityRows(coachabilityEvent?.skills ?? [], coachabilityEvent?.eventNotes))
+
+  await drawCardSection('Goals', [
+    report.projectedLevel?.level ? `Projected Level: ${report.projectedLevel.level}` : 'Projected Level: Not set',
+    report.projectedLevel?.notes?.trim() ? `Progress Note: ${report.projectedLevel.notes.trim()}` : 'Progress Note: Not provided',
     ...report.goals
       .filter((goal) => goal.goal || goal.progressNote)
-      .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | Progress: ${goal.progressNote || 'N/A'}`),
-  ]
-    .filter(Boolean)
-    .join(' | ')
+      .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | ${goal.progressNote || 'No progress note'}`),
+  ])
 
-  const additionalNotesText = [
-    report.generalNotes?.trim() ? report.generalNotes.trim() : '',
-    report.attendance?.trim() ? `Attendance: ${report.attendance.trim()}` : '',
-    report.injuries?.trim() ? `Injuries: ${report.injuries.trim()}` : '',
-    report.reminders?.trim() ? `Reminders: ${report.reminders.trim()}` : '',
-  ]
-    .filter(Boolean)
-    .join(' | ')
-
-  const strengthText = [
-    strengthEvent?.eventNotes?.trim() || '',
-    ...formatSkillRows(strengthEvent?.skills ?? []),
-  ]
-    .filter(Boolean)
-    .join(' | ')
-
-  const coachabilityText = [
-    coachabilityEvent?.eventNotes?.trim() || '',
-    ...formatFeedbackRows('Coachability', coachabilityEvent?.skills ?? []),
-  ]
-    .filter(Boolean)
-    .join(' | ')
-
-  const bottomTop = y - 8
-  drawSmallCard('Strength/Flexibility', strengthText, cardsX, bottomTop - smallCardHeight)
-  drawSmallCard('Coachability', coachabilityText, cardsX + cardWidth + gap, bottomTop - smallCardHeight)
-  drawSmallCard('Goals', goalsText, cardsX, bottomTop - smallCardHeight * 2 - gap)
-  drawSmallCard('Additional Notes', additionalNotesText, cardsX + cardWidth + gap, bottomTop - smallCardHeight * 2 - gap)
+  await drawCardSection('Additional Notes', [
+    report.generalNotes?.trim() ? `General: ${report.generalNotes.trim()}` : 'General: None',
+    report.attendance?.trim() ? `Attendance: ${report.attendance.trim()}` : 'Attendance: None',
+    report.injuries?.trim() ? `Injuries: ${report.injuries.trim()}` : 'Injuries: None',
+    report.reminders?.trim() ? `Reminders: ${report.reminders.trim()}` : 'Reminders: None',
+  ])
 
   page.drawText(`Do not reply to this email. Contact ${contactEmail} for any questions or concerns.`, { x: 30, y: 30, size: 9, font, color: rgb(0.4, 0.4, 0.4) })
 
