@@ -59,14 +59,18 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     return y - lines.length * lineHeight
   }
 
-  const formatSkills = (eventName: string, skills: Array<{ name: string; status: string }>) => {
-    if (!skills.length) return 'None'
-    return skills
-      .map((skill) => {
-        const displayStatus = eventName === 'Coachability' ? normalizeCoachabilityRating(skill.status) : skill.status
-        return `${skill.name} (${displayStatus})`
-      })
-      .join('; ')
+  const formatSkillRows = (skills: Array<{ name: string }>) => (skills.length ? skills.map((skill) => skill.name) : ['None'])
+
+  const formatFeedbackRows = (eventName: string, skills: Array<{ status: string; notes?: string }>, eventFeedback?: string) => {
+    const statusRows = skills.length
+      ? skills.map((skill) => {
+          const displayStatus = eventName === 'Coachability' ? normalizeCoachabilityRating(skill.status) : skill.status
+          return skill.notes?.trim() ? `${displayStatus} - ${skill.notes.trim()}` : displayStatus
+        })
+      : ['-']
+
+    if (eventFeedback?.trim()) statusRows.push(eventFeedback.trim())
+    return statusRows
   }
 
   const drawHeader = async () => {
@@ -104,7 +108,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const tableTop = height - 120
   const tableWidth = width - 60
   const headerHeight = 22
-  const rowHeight = 78
+  const rowHeight = 92
   const eventColWidth = 120
   const feedbackColWidth = 150
   const skillsColWidth = tableWidth - eventColWidth - feedbackColWidth
@@ -121,11 +125,19 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     page.drawRectangle({ x: tableX, y: rowY, width: tableWidth, height: rowHeight, borderColor: rgb(0.85, 0.85, 0.85), borderWidth: 1 })
     page.drawText(eventName, { x: tableX + 8, y: rowY + rowHeight - 18, size: 10, font: bold })
 
-    const skillsText = formatSkills(eventName, event?.skills ?? [])
-    drawWrapped(skillsText, tableX + eventColWidth + 8, rowY + rowHeight - 16, skillsColWidth - 16, 9, 11, font, 5)
+    const skillRows = formatSkillRows(event?.skills ?? [])
+    const feedbackRows = formatFeedbackRows(eventName, event?.skills ?? [], event?.eventNotes)
+    const maxLines = Math.min(Math.max(skillRows.length, feedbackRows.length), 5)
 
-    const feedbackText = event?.eventNotes?.trim() || 'No notes'
-    drawWrapped(feedbackText, tableX + eventColWidth + skillsColWidth + 8, rowY + rowHeight - 16, feedbackColWidth - 16, 9, 11, font, 5)
+    for (let line = 0; line < maxLines; line += 1) {
+      const yLine = rowY + rowHeight - 16 - line * 12
+      if (skillRows[line]) {
+        page.drawText(skillRows[line], { x: tableX + eventColWidth + 8, y: yLine, size: 9, font })
+      }
+      if (feedbackRows[line]) {
+        page.drawText(feedbackRows[line], { x: tableX + eventColWidth + skillsColWidth + 8, y: yLine, size: 9, font })
+      }
+    }
   }
 
   const cardsTop = rowY - 16
@@ -145,7 +157,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const coachabilityEvent = getEvent('Coachability')
   const goalsText = [
     report.projectedLevel?.level ? `Projected Level: ${report.projectedLevel.level}` : '',
-    report.projectedLevel?.notes ? `Projected Level Notes: ${report.projectedLevel.notes}` : '',
+    report.projectedLevel?.notes ? `Projected Level Detail: ${report.projectedLevel.notes}` : '',
     ...report.goals
       .filter((goal) => goal.goal || goal.progressNote)
       .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | Progress: ${goal.progressNote || 'N/A'}`),
@@ -154,7 +166,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     .join(' | ')
 
   const additionalNotesText = [
-    report.generalNotes?.trim() ? `Notes: ${report.generalNotes.trim()}` : '',
+    report.generalNotes?.trim() ? report.generalNotes.trim() : '',
     report.attendance?.trim() ? `Attendance: ${report.attendance.trim()}` : '',
     report.injuries?.trim() ? `Injuries: ${report.injuries.trim()}` : '',
     report.reminders?.trim() ? `Reminders: ${report.reminders.trim()}` : '',
@@ -163,15 +175,15 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     .join(' | ')
 
   const strengthText = [
-    strengthEvent?.eventNotes?.trim() ? `Notes: ${strengthEvent.eventNotes.trim()}` : '',
-    formatSkills('Strength/Flexibility', strengthEvent?.skills ?? []),
+    strengthEvent?.eventNotes?.trim() || '',
+    ...formatSkillRows(strengthEvent?.skills ?? []),
   ]
     .filter(Boolean)
     .join(' | ')
 
   const coachabilityText = [
-    coachabilityEvent?.eventNotes?.trim() ? `Notes: ${coachabilityEvent.eventNotes.trim()}` : '',
-    formatSkills('Coachability', coachabilityEvent?.skills ?? []),
+    coachabilityEvent?.eventNotes?.trim() || '',
+    ...formatFeedbackRows('Coachability', coachabilityEvent?.skills ?? []),
   ]
     .filter(Boolean)
     .join(' | ')
