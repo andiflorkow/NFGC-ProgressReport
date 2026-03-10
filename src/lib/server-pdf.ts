@@ -115,11 +115,10 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
 
   const side = 30
-  const cardWidth = width - side * 2
+  const contentWidth = width - side * 2
   const bodySize = 9
   const bodyLineHeight = 12
-  const cardPadding = 10
-  const titleGap = 8
+  const titleGap = 6
   const rowGap = 4
 
   let y = height - 42
@@ -130,44 +129,41 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     y = height - 42
   }
 
-  const drawCardSection = async (title: string, rows: string[]) => {
-    const wrappedRows = rows.map((row) => wrapLines(row, cardWidth - cardPadding * 2, bodySize, font))
+  const drawSection = async (title: string, rows: string[]) => {
+    const wrappedRows = rows.map((row) => wrapLines(row, contentWidth, bodySize, font))
     const rowLineCount = wrappedRows.reduce((sum, lines) => sum + lines.length, 0)
-    const cardHeight = cardPadding + 12 + titleGap + rowLineCount * bodyLineHeight + (rows.length - 1) * rowGap + cardPadding
+    const sectionHeight = 12 + titleGap + rowLineCount * bodyLineHeight + (rows.length - 1) * rowGap + 12
 
-    if (y - cardHeight < 48) {
+    if (y - sectionHeight < 48) {
       await newPage()
     }
 
-    const cardY = y - cardHeight
-    page.drawRectangle({
-      x: side,
-      y: cardY,
-      width: cardWidth,
-      height: cardHeight,
-      borderColor: rgb(0.82, 0.82, 0.82),
-      borderWidth: 1,
-      color: rgb(0.99, 0.99, 0.99),
-    })
-
     page.drawText(title, {
-      x: side + cardPadding,
-      y: cardY + cardHeight - cardPadding - 2,
+      x: side,
+      y,
       size: 11,
       font: bold,
       color: rgb(176 / 255, 18 / 255, 18 / 255),
     })
+    y -= 12 + titleGap
 
-    let textY = cardY + cardHeight - cardPadding - 14 - titleGap
+    let textY = y
     for (const lines of wrappedRows) {
       for (const line of lines) {
-        page.drawText(line, { x: side + cardPadding, y: textY, size: bodySize, font })
+        page.drawText(line, { x: side, y: textY, size: bodySize, font })
         textY -= bodyLineHeight
       }
       textY -= rowGap
     }
 
-    y = cardY - 10
+    y = textY + rowGap - 6
+    page.drawLine({
+      start: { x: side, y },
+      end: { x: width - side, y },
+      thickness: 0.6,
+      color: rgb(0.85, 0.85, 0.85),
+    })
+    y -= 10
   }
 
   drawCentered('North Florida Gymnastics', y, 18, bold, rgb(176 / 255, 18 / 255, 18 / 255))
@@ -187,21 +183,21 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
       'Skills:',
       ...formatSkillRows(event?.skills ?? []),
     ]
-    await drawCardSection(eventName, rows)
+    await drawSection(eventName, rows)
   }
 
   const strengthEvent = getEvent('Strength/Flexibility')
   const coachabilityEvent = getEvent('Coachability')
 
-  await drawCardSection('Strength/Flexibility', [
+  await drawSection('Strength/Flexibility', [
     strengthEvent?.eventNotes?.trim() ? `Feedback: ${strengthEvent.eventNotes.trim()}` : 'Feedback: No feedback yet',
     'Skills:',
     ...formatSkillRows(strengthEvent?.skills ?? []),
   ])
 
-  await drawCardSection('Coachability', formatCoachabilityRows(coachabilityEvent?.skills ?? [], coachabilityEvent?.eventNotes))
+  await drawSection('Coachability', formatCoachabilityRows(coachabilityEvent?.skills ?? [], coachabilityEvent?.eventNotes))
 
-  await drawCardSection('Goals', [
+  await drawSection('Goals', [
     report.projectedLevel?.level ? `Projected Level: ${report.projectedLevel.level}` : 'Projected Level: Not set',
     report.projectedLevel?.notes?.trim() ? `Progress Note: ${report.projectedLevel.notes.trim()}` : 'Progress Note: Not provided',
     ...report.goals
@@ -209,7 +205,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
       .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | ${goal.progressNote || 'No progress note'}`),
   ])
 
-  await drawCardSection('Additional Notes', [
+  await drawSection('Additional Notes', [
     report.generalNotes?.trim() ? `General: ${report.generalNotes.trim()}` : 'General: None',
     report.attendance?.trim() ? `Attendance: ${report.attendance.trim()}` : 'Attendance: None',
     report.injuries?.trim() ? `Injuries: ${report.injuries.trim()}` : 'Injuries: None',
