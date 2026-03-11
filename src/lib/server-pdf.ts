@@ -121,7 +121,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const titleGap = 6
   const rowGap = 5
   const sectionGap = 16
-  const groupGap = 4
+  const groupGap = 2
   const spacerToken = '__SPACER__'
 
   let y = height - 42
