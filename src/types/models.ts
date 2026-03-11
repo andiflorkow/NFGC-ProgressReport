@@ -56,6 +56,12 @@ export interface GoalItem {
   progressNote?: string
 }
 
+export interface FocusAreaItem {
+  id: string
+  title: string
+  notes?: string
+}
+
 export interface ReportPdfEntry {
   id: string
   month: string
@@ -84,6 +90,7 @@ export interface Report {
     comments?: string
   }
   goals: GoalItem[]
+  focusAreas?: FocusAreaItem[]
   projectedLevel?: {
     level?: string
     notes?: string

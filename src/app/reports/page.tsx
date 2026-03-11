@@ -1,19 +1,21 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../components/ui/accordion'
+import { Badge } from '../../components/ui/badge'
+import { Button } from '../../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs'
-import { Button } from '../../components/ui/button'
-import { Badge } from '../../components/ui/badge'
-import { useToast, ToastRoot } from '../../components/ui/toast'
+import { ToastRoot, useToast } from '../../components/ui/toast'
 import { useAppData } from '../../hooks/use-app-data'
-import { EventName, Report, SkillStatus } from '../../types/models'
-import { formatReportMonth } from '../../lib/utils'
 import { openReportPdfPreview } from '../../lib/pdf-preview'
+import { formatReportMonth } from '../../lib/utils'
+import { EventName, Report, SkillStatus } from '../../types/models'
 
 const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Coachability']
+const STEPS = [1, 2, 3, 4] as const
 const SKILL_STATUSES: SkillStatus[] = ['Not Started', 'Working', 'Consistent', 'Competition Ready']
 const COACHABILITY_STATUSES: SkillStatus[] = ['1', '2', '3', '4', '5']
 const COACHABILITY_FIELDS = ['Respect', 'Work Ethic', 'Training Habits'] as const
@@ -26,6 +28,7 @@ const DEFAULT_EVENT_SKILL_LIBRARY: Record<EventName, string[]> = {
   'Strength/Flexibility': [],
   Coachability: [],
 }
+const FOCUS_AREA_LIBRARY = ['Form', 'Strength', 'Presentation', 'Confidence', 'Consistency', 'Flexibility']
 
 const LEVEL_SKILL_LIBRARY: Partial<Record<string, Partial<Record<EventName, string[]>>>> = {
   'Xcel Bronze': {
@@ -95,6 +98,8 @@ const emptyEventValues = EVENTS.reduce((acc, event) => {
   return acc
 }, {} as Record<EventName, string>)
 
+const uid = () => Math.random().toString(36).slice(2, 11)
+
 const buildCoachabilitySkills = () =>
   COACHABILITY_FIELDS.map((name) => ({
     name,
@@ -124,7 +129,7 @@ const buildEmptyEventReport = (event: EventName, coachName: string): Report['eve
   skills: event === 'Coachability' ? buildCoachabilitySkills() : [],
 })
 
-const normalizeReportForCurrentEvents = (report: Report, coachName: string): Report => {
+const normalizeReportForCurrentEvents = (report: Report, coachName: string, gymnastLevel = ''): Report => {
   const rawEventReports = report.eventReports as unknown as Record<string, Report['eventReports'][EventName]>
   const nextEventReports = EVENTS.reduce((acc, event) => {
     const current = rawEventReports[event] ?? (event === 'Coachability' ? rawEventReports.Behavior : undefined)
@@ -138,13 +143,8 @@ const normalizeReportForCurrentEvents = (report: Report, coachName: string): Rep
             event === 'Coachability'
               ? COACHABILITY_FIELDS.map((fieldName) => {
                   const existing = current.skills.find((skill) => skill.name === fieldName)
-                  if (!existing) {
-                    return { name: fieldName, status: '3' as SkillStatus, notes: '' }
-                  }
-                  return {
-                    ...existing,
-                    status: normalizeCoachabilityStatus(existing.status),
-                  }
+                  if (!existing) return { name: fieldName, status: '3' as SkillStatus, notes: '' }
+                  return { ...existing, status: normalizeCoachabilityStatus(existing.status) }
                 })
               : current.skills,
         }
@@ -155,13 +155,33 @@ const normalizeReportForCurrentEvents = (report: Report, coachName: string): Rep
   return {
     ...report,
     eventReports: nextEventReports,
+    goals: report.goals?.length ? report.goals : [{ id: uid(), goal: '', progressNote: '' }],
+    focusAreas: report.focusAreas ?? [],
+    projectedLevel: report.projectedLevel ?? { level: gymnastLevel, notes: '' },
   }
 }
 
-const uid = () => Math.random().toString(36).slice(2, 11)
+const hasGoalContent = (report: Report) =>
+  Boolean(
+    report.projectedLevel?.level?.trim() ||
+      report.projectedLevel?.notes?.trim() ||
+      report.goals.some((goal) => goal.goal.trim() || goal.progressNote?.trim()),
+  )
+
+const hasAdditionalNotes = (report: Report) =>
+  Boolean(report.attendance?.trim() || report.injuries?.trim() || report.reminders?.trim())
+
+const formatEventQuickBreakdown = (eventReport: Report['eventReports'][EventName]) => {
+  const lines: string[] = []
+  if (eventReport.eventNotes?.trim()) lines.push(eventReport.eventNotes.trim())
+  if (eventReport.skills.length) {
+    lines.push(...eventReport.skills.map((skill) => `${skill.name}: ${skill.status}${skill.notes?.trim() ? ` | ${skill.notes.trim()}` : ''}`))
+  }
+  return lines
+}
 
 export default function ReportsPage() {
-  const { data, save, loading } = useAppData()
+  const { data, save, loading, reload } = useAppData()
   const { open, setOpen, message, toast } = useToast()
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
@@ -172,6 +192,8 @@ export default function ReportsPage() {
   const [savedFlag, setSavedFlag] = useState('Saved')
   const [addSkillInput, setAddSkillInput] = useState<Record<EventName, string>>(emptyEventValues)
   const [showSkillSuggestions, setShowSkillSuggestions] = useState(false)
+  const [focusAreaInput, setFocusAreaInput] = useState('')
+  const [showFocusAreaSuggestions, setShowFocusAreaSuggestions] = useState(false)
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search)
@@ -184,12 +206,14 @@ export default function ReportsPage() {
     if (queryEvent && EVENTS.includes(queryEvent)) setActiveEvent(queryEvent)
   }, [])
 
+  const currentGymnast = data?.gymnasts.find((item) => item.id === gymnastId)
+
   useEffect(() => {
     if (!data || !gymnastId) return
     const selectedGymnast = data.gymnasts.find((item) => item.id === gymnastId)
     const existing = data.reports.find((item) => item.gymnastId === gymnastId && item.month === month)
     if (existing) {
-      setReport(normalizeReportForCurrentEvents(existing, data.coachName))
+      setReport(normalizeReportForCurrentEvents(existing, data.coachName, selectedGymnast?.level || ''))
       setSavedFlag('Saved')
       return
     }
@@ -207,6 +231,7 @@ export default function ReportsPage() {
       eventReports: baseEventReports,
       behavior: { effort: 3, coachability: 3, focus: 3, respect: 3, comments: '' },
       goals: [{ id: uid(), goal: '', progressNote: '' }],
+      focusAreas: [],
       projectedLevel: { level: selectedGymnast?.level || '', notes: '' },
       attendance: '',
       injuries: '',
@@ -240,8 +265,6 @@ export default function ReportsPage() {
     return () => clearTimeout(timer)
   }, [report, data, save, toast])
 
-  const currentGymnast = data?.gymnasts.find((item) => item.id === gymnastId)
-
   const updateReport = (updater: (current: Report) => Report) => {
     setReport((current) => {
       if (!current || !data) return current
@@ -255,15 +278,9 @@ export default function ReportsPage() {
   }
 
   const requiredStepOneComplete = Boolean(gymnastId && month)
-
-  const requiredStepTwoComplete = useMemo(() => {
-    if (!report) return false
-    return EVENTS.every((event) => Boolean(report.eventReports[event].isComplete ?? (report.readiness === 'ready')))
-  }, [report])
-
   const completedEvents = useMemo(() => {
     if (!report) return 0
-    return EVENTS.filter((event) => report.eventReports[event].isComplete ?? (report.readiness === 'ready')).length
+    return EVENTS.filter((event) => report.eventReports[event].isComplete).length
   }, [report])
 
   const levelSkillLibrary = useMemo(() => {
@@ -271,11 +288,7 @@ export default function ReportsPage() {
     if (!level) return DEFAULT_EVENT_SKILL_LIBRARY
     const perLevel = LEVEL_SKILL_LIBRARY[level]
     if (!perLevel) return DEFAULT_EVENT_SKILL_LIBRARY
-
-    return {
-      ...DEFAULT_EVENT_SKILL_LIBRARY,
-      ...perLevel,
-    } as Record<EventName, string[]>
+    return { ...DEFAULT_EVENT_SKILL_LIBRARY, ...perLevel } as Record<EventName, string[]>
   }, [currentGymnast?.level])
 
   const availableSuggestedSkills = useMemo(() => {
@@ -284,19 +297,26 @@ export default function ReportsPage() {
     return levelSkillLibrary[activeEvent].filter((skill) => !existing.has(skill.toLowerCase()))
   }, [report, activeEvent, levelSkillLibrary])
 
+  const availableFocusAreas = useMemo(() => {
+    if (!report) return FOCUS_AREA_LIBRARY
+    const existing = new Set((report.focusAreas ?? []).map((item) => item.title.trim().toLowerCase()))
+    return FOCUS_AREA_LIBRARY.filter((item) => !existing.has(item.toLowerCase()))
+  }, [report])
+
+  const currentEventIsComplete = Boolean(report?.eventReports[activeEvent].isComplete)
+  const eventNotesLabel = activeEvent === 'Strength/Flexibility' || activeEvent === 'Coachability' ? 'Notes' : 'Event Notes'
+  const stepSummaryText = currentGymnast
+    ? `${currentGymnast.name} • Level ${currentGymnast.level} • ${formatReportMonth(month)}`
+    : 'Select a gymnast and month to begin.'
+
   const addSkillToActiveEvent = (skillName: string) => {
     if (activeEvent === 'Coachability') return
     const normalized = skillName.trim()
-    if (!normalized) return
-    if (!report) return
-
+    if (!normalized || !report) return
     const alreadyExists = report.eventReports[activeEvent].skills.some(
       (skill) => skill.name.trim().toLowerCase() === normalized.toLowerCase(),
     )
-    if (alreadyExists) {
-      toast('That skill is already added for this event')
-      return
-    }
+    if (alreadyExists) return toast('That skill is already added for this event')
 
     updateReport((current) => ({
       ...current,
@@ -326,29 +346,152 @@ export default function ReportsPage() {
     }))
   }
 
+  const addFocusArea = (title: string) => {
+    const normalized = title.trim()
+    if (!normalized || !report) return
+    const alreadyExists = (report.focusAreas ?? []).some((item) => item.title.trim().toLowerCase() === normalized.toLowerCase())
+    if (alreadyExists) return toast('That focus area is already added')
+
+    updateReport((current) => ({
+      ...current,
+      focusAreas: [...(current.focusAreas ?? []), { id: uid(), title: normalized, notes: '' }],
+    }))
+    setFocusAreaInput('')
+  }
+
+  const toggleActiveEventComplete = () => {
+    updateReport((current) => {
+      const currentEvent = current.eventReports[activeEvent]
+      const nextComplete = !currentEvent.isComplete
+      return {
+        ...current,
+        eventReports: {
+          ...current.eventReports,
+          [activeEvent]: {
+            ...currentEvent,
+            isComplete: nextComplete,
+            completedAt: nextComplete ? new Date().toISOString() : undefined,
+            completedBy: nextComplete ? data?.coachName : undefined,
+          },
+        },
+      }
+    })
+  }
+
+  const markAllEventsComplete = () => {
+    updateReport((current) => ({
+      ...current,
+      eventReports: EVENTS.reduce((acc, event) => {
+        acc[event] = {
+          ...current.eventReports[event],
+          isComplete: true,
+          completedAt: current.eventReports[event].completedAt || new Date().toISOString(),
+          completedBy: current.eventReports[event].completedBy || data?.coachName,
+        }
+        return acc
+      }, {} as Report['eventReports']),
+    }))
+    toast('All events marked complete')
+  }
+
+  const handlePreviewPdf = async () => {
+    if (!report) return
+    const opened = await openReportPdfPreview(report.id, toast)
+    if (opened) await reload()
+  }
+
+  const goToStep = (targetStep: 1 | 2 | 3 | 4) => {
+    if (targetStep > 1 && !requiredStepOneComplete) {
+      toast('Select gymnast and month first')
+      return
+    }
+    setStep(targetStep)
+  }
+
   if (loading || !data) return <p>Loading...</p>
+
+  const summarySections = report
+    ? [
+        {
+          key: 'goals',
+          title: 'Goals',
+          complete: hasGoalContent(report),
+          lines: [
+            ...(report.projectedLevel?.level ? [`Projected Level: ${report.projectedLevel.level}`] : []),
+            ...(report.projectedLevel?.notes?.trim() ? [`Projected Level Notes: ${report.projectedLevel.notes.trim()}`] : []),
+            ...report.goals
+              .filter((goal) => goal.goal.trim() || goal.progressNote?.trim())
+              .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'}${goal.progressNote?.trim() ? ` | ${goal.progressNote.trim()}` : ''}`),
+          ],
+          onEdit: () => setStep(3),
+        },
+        {
+          key: 'focus-areas',
+          title: 'Focus Areas',
+          complete: Boolean(report.focusAreas?.some((item) => item.title.trim() || item.notes?.trim())),
+          lines: (report.focusAreas ?? [])
+            .filter((item) => item.title.trim() || item.notes?.trim())
+            .map((item) => `${item.title}${item.notes?.trim() ? `: ${item.notes.trim()}` : ''}`),
+          onEdit: () => setStep(3),
+        },
+        {
+          key: 'monthly-summary',
+          title: 'Monthly Summary Notes',
+          complete: Boolean(report.generalNotes?.trim()),
+          lines: report.generalNotes?.trim() ? [report.generalNotes.trim()] : [],
+          onEdit: () => setStep(3),
+        },
+        {
+          key: 'additional-notes',
+          title: 'Additional Notes',
+          complete: hasAdditionalNotes(report),
+          lines: [
+            ...(report.attendance?.trim() ? [`Attendance: ${report.attendance.trim()}`] : []),
+            ...(report.injuries?.trim() ? [`Injuries / Health: ${report.injuries.trim()}`] : []),
+            ...(report.reminders?.trim() ? [`Reminders: ${report.reminders.trim()}`] : []),
+          ],
+          onEdit: () => setStep(3),
+        },
+      ]
+    : []
 
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle>Report Builder</CardTitle>
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-1">
+            <CardTitle>Report Builder</CardTitle>
+            <p className="text-sm text-muted">{stepSummaryText}</p>
+          </div>
+          <p className="text-xs text-muted">{savedFlag}</p>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           <p className="text-sm text-muted">Primary task: complete one report in 4 clear steps.</p>
           <div className="flex flex-wrap gap-2">
-            <Badge variant={step === 1 ? 'default' : 'secondary'}>Step 1: Select</Badge>
-            <Badge variant={step === 2 ? 'default' : 'secondary'}>Step 2: Fill Events</Badge>
-            <Badge variant={step === 3 ? 'default' : 'secondary'}>Step 3: Monthly Summary</Badge>
-            <Badge variant={step === 4 ? 'default' : 'secondary'}>Step 4: Review & Send</Badge>
-            <Badge variant="secondary">{savedFlag}</Badge>
+            {STEPS.map((stepNumber) => (
+              <Button
+                key={stepNumber}
+                type="button"
+                size="sm"
+                variant={step === stepNumber ? 'default' : 'secondary'}
+                onClick={() => goToStep(stepNumber)}
+                disabled={stepNumber > 1 && !requiredStepOneComplete}
+              >
+                {stepNumber === 1 ? 'Step 1: Select' : null}
+                {stepNumber === 2 ? 'Step 2: Skill Progress' : null}
+                {stepNumber === 3 ? 'Step 3: Monthly Summary' : null}
+                {stepNumber === 4 ? 'Step 4: Review' : null}
+              </Button>
+            ))}
           </div>
         </CardContent>
       </Card>
 
       {step === 1 ? (
         <Card>
-          <CardHeader><CardTitle>Step 1: Select Gymnast and Month</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Step 1: Select Gymnast and Month</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-3">
             <div>
               <p className="mb-1 text-sm">Gymnast <span className="text-primary">* Required</span></p>
@@ -370,7 +513,7 @@ export default function ReportsPage() {
                 onChange={(event) => setMonth(event.target.value)}
               />
             </div>
-            <Button disabled={!requiredStepOneComplete} onClick={() => setStep(2)}>Next: Fill Events</Button>
+            <Button disabled={!requiredStepOneComplete} onClick={() => setStep(2)}>Next: Skill Progress</Button>
             {!requiredStepOneComplete ? <p className="text-sm text-muted">Select required fields to continue.</p> : null}
           </CardContent>
         </Card>
@@ -379,7 +522,7 @@ export default function ReportsPage() {
       {step === 2 && report ? (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>Step 2: Fill Events (One at a time)</CardTitle>
+            <CardTitle>Step 2: Skill Progress</CardTitle>
             <div className="flex gap-2">
               <Badge variant="secondary">{activeEvent}</Badge>
               <Badge variant={completedEvents === EVENTS.length ? 'success' : 'warning'}>
@@ -391,7 +534,7 @@ export default function ReportsPage() {
             <Tabs value={activeEvent} onValueChange={(value) => setActiveEvent(value as EventName)}>
               <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 rounded-xl bg-bg p-1">
                 {EVENTS.map((event) => {
-                  const isComplete = report.eventReports[event].isComplete ?? (report.readiness === 'ready')
+                  const isComplete = Boolean(report.eventReports[event].isComplete)
                   return (
                     <TabsTrigger key={event} value={event} className="h-8 gap-2 px-2 py-1 text-xs">
                       <span>{event}</span>
@@ -405,49 +548,24 @@ export default function ReportsPage() {
                 <div className="flex items-start justify-between gap-3 border-b border-border pb-2">
                   <div>
                     <p className="text-base font-semibold tracking-wide">{activeEvent}</p>
-                    <p className="text-xs text-muted">{activeEvent === 'Coachability' ? 'Coachability fields and ratings' : 'Event skill editing'}</p>
+                    <p className="text-xs text-muted">
+                      {activeEvent === 'Coachability'
+                        ? 'Rate the required coachability fields and add quick notes if needed.'
+                        : 'Track the most relevant skills and a short note for this event.'}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant={(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'success' : 'warning'}>
-                      {(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'Complete' : 'Open'}
-                    </Badge>
-                    <Button
-                      size="sm"
-                      variant={(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'secondary' : 'default'}
-                      onClick={() =>
-                        updateReport((current) => {
-                          const currentEvent = current.eventReports[activeEvent]
-                          const isCurrentlyComplete = currentEvent.isComplete ?? (current.readiness === 'ready')
-                          const nextComplete = !isCurrentlyComplete
-                          return {
-                            ...current,
-                            eventReports: {
-                              ...current.eventReports,
-                              [activeEvent]: {
-                                ...currentEvent,
-                                isComplete: nextComplete,
-                                completedAt: nextComplete ? new Date().toISOString() : undefined,
-                                completedBy: nextComplete ? data.coachName : undefined,
-                              },
-                            },
-                          }
-                        })
-                      }
-                    >
-                      {(report.eventReports[activeEvent].isComplete ?? (report.readiness === 'ready')) ? 'Mark Incomplete' : 'Mark Event Complete'}
-                    </Button>
-                  </div>
+                  <Badge variant={currentEventIsComplete ? 'success' : 'warning'}>
+                    {currentEventIsComplete ? 'Complete' : 'Open'}
+                  </Badge>
                 </div>
 
-                <div>
-                  <p className="mb-1 text-sm font-semibold">Add Skill</p>
-                  {OPTIONAL_SKILL_EVENTS.includes(activeEvent) ? (
-                    <p className="mb-2 text-sm text-muted">Skills are optional for this event. Add only if you want to track them.</p>
-                  ) : null}
-                  {activeEvent === 'Coachability' ? (
-                    <p className="text-sm text-muted">Respect, Work Ethic, and Training Habits are required coachability fields and use a 1-5 rating scale.</p>
-                  ) : (
-                    <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+                {activeEvent !== 'Coachability' ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold">Add Skill</p>
+                    {OPTIONAL_SKILL_EVENTS.includes(activeEvent) ? (
+                      <p className="text-sm text-muted">Skills are optional here. Add only what you want to track.</p>
+                    ) : null}
+                    <div className="grid max-w-lg gap-2 md:grid-cols-[minmax(0,20rem)_auto]">
                       <div className="relative">
                         <Input
                           placeholder="Search or add skill..."
@@ -478,6 +596,7 @@ export default function ReportsPage() {
                       </div>
                       <Button
                         type="button"
+                        size="sm"
                         variant="secondary"
                         disabled={!addSkillInput[activeEvent].trim()}
                         onClick={() => addSkillToActiveEvent(addSkillInput[activeEvent])}
@@ -485,14 +604,14 @@ export default function ReportsPage() {
                         Add
                       </Button>
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : null}
 
                 <div>
-                  <p className="mb-1 text-sm font-semibold">Event Notes</p>
+                  <p className="mb-1 text-sm font-semibold">{eventNotesLabel}</p>
                   <textarea
-                    className="min-h-[88px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
-                    placeholder="Optional notes for this event"
+                    className="min-h-[74px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
+                    placeholder="Optional note"
                     value={report.eventReports[activeEvent].eventNotes || ''}
                     onChange={(event) =>
                       updateReport((current) => ({
@@ -507,53 +626,62 @@ export default function ReportsPage() {
                 </div>
 
                 <div>
-                  <p className="mb-1 text-sm font-semibold">Skills</p>
+                  <p className="mb-1 text-sm font-semibold">Skill Progress</p>
                 </div>
 
                 {!report.eventReports[activeEvent].skills.length ? (
-                  <p className="text-sm text-muted">No skills added for this event yet. Select or add one above to begin.</p>
+                  <p className="text-sm text-muted">
+                    {activeEvent === 'Coachability'
+                      ? 'Coachability ratings are set up automatically.'
+                      : 'No skills added for this event yet. Add one above to begin.'}
+                  </p>
                 ) : null}
 
                 {report.eventReports[activeEvent].skills.map((skill) => (
-                  <div key={skill.name} className="rounded-xl border border-border bg-bg p-3">
+                  <div key={skill.name} className="rounded-xl border border-border bg-bg p-2.5">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-sm font-semibold">{skill.name}</p>
                       {activeEvent !== 'Coachability' ? (
                         <Button type="button" size="sm" variant="ghost" onClick={() => removeSkillFromActiveEvent(skill.name)}>
-                          Remove Skill
+                          Remove
                         </Button>
                       ) : null}
                     </div>
 
                     <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Status</p>
                     <div className="flex flex-wrap gap-1">
-                        {(activeEvent === 'Coachability' ? COACHABILITY_STATUSES : SKILL_STATUSES).map((status) => (
-                          <button
-                            key={status}
-                            onClick={() =>
-                              updateReport((current) => ({
-                                ...current,
-                                eventReports: {
-                                  ...current.eventReports,
-                                  [activeEvent]: {
-                                    ...current.eventReports[activeEvent],
-                                    skills: current.eventReports[activeEvent].skills.map((item) =>
-                                      item.name === skill.name ? { ...item, status } : item,
-                                    ),
-                                  },
+                      {(activeEvent === 'Coachability' ? COACHABILITY_STATUSES : SKILL_STATUSES).map((status) => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() =>
+                            updateReport((current) => ({
+                              ...current,
+                              eventReports: {
+                                ...current.eventReports,
+                                [activeEvent]: {
+                                  ...current.eventReports[activeEvent],
+                                  skills: current.eventReports[activeEvent].skills.map((item) =>
+                                    item.name === skill.name ? { ...item, status } : item,
+                                  ),
                                 },
-                              }))
-                            }
-                            className={status === skill.status ? 'rounded-full border border-primary bg-primary/15 px-2 py-1 text-xs' : 'rounded-full border border-border px-2 py-1 text-xs'}
-                          >
-                            {status}
-                          </button>
-                        ))}
+                              },
+                            }))
+                          }
+                          className={
+                            status === skill.status
+                              ? 'rounded-full border border-primary bg-primary/15 px-2 py-1 text-xs'
+                              : 'rounded-full border border-border px-2 py-1 text-xs'
+                          }
+                        >
+                          {status}
+                        </button>
+                      ))}
                     </div>
 
-                    <p className="mb-1 mt-3 text-xs font-semibold uppercase tracking-wide text-muted">Notes</p>
+                    <p className="mb-1 mt-2 text-xs font-semibold uppercase tracking-wide text-muted">Notes</p>
                     <textarea
-                      className="min-h-[84px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
+                      className="min-h-[68px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
                       placeholder={activeEvent === 'Coachability' ? `${skill.name} note (optional)` : 'Quick note (optional)'}
                       value={skill.notes || ''}
                       onChange={(event) =>
@@ -578,24 +706,26 @@ export default function ReportsPage() {
 
             <div className="flex flex-wrap justify-between gap-2">
               <Button variant="secondary" onClick={() => setStep(1)}>Back</Button>
-              <Button onClick={() => {
-                const currentIndex = EVENTS.indexOf(activeEvent)
-                const hasNextEvent = currentIndex >= 0 && currentIndex < EVENTS.length - 1
-
-                if (hasNextEvent) {
-                  setActiveEvent(EVENTS[currentIndex + 1])
-                  return
-                }
-
-                if (requiredStepTwoComplete) {
-                  setStep(3)
-                  return
-                }
-
-                toast('Mark each event complete before continuing')
-              }}>
-                Save & Continue
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={toggleActiveEventComplete}>
+                  {currentEventIsComplete ? 'Mark Incomplete' : 'Mark Complete'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    const currentIndex = EVENTS.indexOf(activeEvent)
+                    const hasNextEvent = currentIndex >= 0 && currentIndex < EVENTS.length - 1
+                    if (hasNextEvent) {
+                      setActiveEvent(EVENTS[currentIndex + 1])
+                      return
+                    }
+                    setStep(3)
+                  }}
+                >
+                  Save & Continue
+                </Button>
+                <Button onClick={() => setStep(3)}>Next Step</Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -603,28 +733,219 @@ export default function ReportsPage() {
 
       {step === 3 && report ? (
         <Card>
-          <CardHeader><CardTitle>Step 3: Monthly Summary</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-xl border border-border bg-bg p-3">
-              <p className="font-medium">Summary</p>
-              <p className="text-sm text-muted">Gymnast: {currentGymnast?.name || 'Unknown'} • Month: {formatReportMonth(month)}</p>
-            </div>
-
-            <div className="rounded-xl border border-border bg-bg p-3 space-y-4">
-              <div>
-                <p className="font-medium">Monthly Summary</p>
-                <p className="text-sm text-muted">Use short notes. Keep it simple and coach-friendly.</p>
+          <CardHeader>
+            <CardTitle>Step 3: Monthly Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3 rounded-xl border border-border bg-bg p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-medium">Goals</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() =>
+                    updateReport((current) => ({
+                      ...current,
+                      goals: [...current.goals, { id: uid(), goal: '', progressNote: '' }],
+                    }))
+                  }
+                >
+                  Add Goal
+                </Button>
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Monthly Summary Notes</p>
-                  <Input
-                    placeholder="Short monthly summary note"
-                    value={report.generalNotes || ''}
-                    onChange={(event) => updateReport((current) => ({ ...current, generalNotes: event.target.value }))}
-                  />
+                <div className="space-y-3 rounded-xl border border-border bg-surface p-3">
+                  <p className="text-sm font-medium">Current Projected Level</p>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted">Projected level</p>
+                    <Select
+                      value={report.projectedLevel?.level || ''}
+                      onValueChange={(value) =>
+                        updateReport((current) => ({
+                          ...current,
+                          projectedLevel: {
+                            ...current.projectedLevel,
+                            level: value,
+                          },
+                        }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select projected level" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROJECTED_LEVEL_OPTIONS.map((item) => (
+                          <SelectItem key={item} value={item}>{item}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-muted">Notes</p>
+                    <textarea
+                      className="min-h-[82px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
+                      placeholder="Notes about projected level"
+                      value={report.projectedLevel?.notes || ''}
+                      onChange={(event) =>
+                        updateReport((current) => ({
+                          ...current,
+                          projectedLevel: {
+                            ...current.projectedLevel,
+                            notes: event.target.value,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
                 </div>
+
+                <div className="space-y-3 rounded-xl border border-border bg-surface p-3">
+                  <p className="text-sm font-medium">Additional Goals</p>
+                  <div className="space-y-2">
+                    {report.goals.map((goal) => (
+                      <div key={goal.id} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
+                        <Input
+                          placeholder="Goal"
+                          value={goal.goal}
+                          onChange={(event) =>
+                            updateReport((current) => ({
+                              ...current,
+                              goals: current.goals.map((item) =>
+                                item.id === goal.id ? { ...item, goal: event.target.value } : item,
+                              ),
+                            }))
+                          }
+                        />
+                        <Input
+                          placeholder="Progress note"
+                          value={goal.progressNote || ''}
+                          onChange={(event) =>
+                            updateReport((current) => ({
+                              ...current,
+                              goals: current.goals.map((item) =>
+                                item.id === goal.id ? { ...item, progressNote: event.target.value } : item,
+                              ),
+                            }))
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() =>
+                            updateReport((current) => ({
+                              ...current,
+                              goals: current.goals.length > 1 ? current.goals.filter((item) => item.id !== goal.id) : current.goals,
+                            }))
+                          }
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-border bg-bg p-3">
+              <div>
+                <p className="font-medium">Focus Areas</p>
+                <p className="text-sm text-muted">Add a focus area and a short coaching description for this month.</p>
+              </div>
+              <div className="grid max-w-lg gap-2 md:grid-cols-[minmax(0,20rem)_auto]">
+                <div className="relative">
+                  <Input
+                    placeholder="Search or add focus area..."
+                    value={focusAreaInput}
+                    onChange={(event) => setFocusAreaInput(event.target.value)}
+                    onFocus={() => setShowFocusAreaSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowFocusAreaSuggestions(false), 120)}
+                  />
+                  {showFocusAreaSuggestions ? (
+                    <div className="absolute z-10 mt-1 max-h-44 w-full overflow-auto rounded-lg border border-border bg-surface shadow-md">
+                      {availableFocusAreas
+                        .filter((item) => item.toLowerCase().includes(focusAreaInput.toLowerCase().trim()))
+                        .map((item) => (
+                          <button
+                            key={item}
+                            type="button"
+                            className="block w-full px-3 py-2 text-left text-sm hover:bg-bg"
+                            onMouseDown={(event) => {
+                              event.preventDefault()
+                              setFocusAreaInput(item)
+                            }}
+                          >
+                            {item}
+                          </button>
+                        ))}
+                    </div>
+                  ) : null}
+                </div>
+                <Button type="button" size="sm" variant="secondary" disabled={!focusAreaInput.trim()} onClick={() => addFocusArea(focusAreaInput)}>
+                  Add
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                {(report.focusAreas ?? []).map((focusArea) => (
+                  <div key={focusArea.id} className="rounded-xl border border-border bg-surface p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">{focusArea.title}</p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          updateReport((current) => ({
+                            ...current,
+                            focusAreas: (current.focusAreas ?? []).filter((item) => item.id !== focusArea.id),
+                          }))
+                        }
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                    <textarea
+                      className="min-h-[76px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
+                      placeholder="Brief description or coaching note"
+                      value={focusArea.notes || ''}
+                      onChange={(event) =>
+                        updateReport((current) => ({
+                          ...current,
+                          focusAreas: (current.focusAreas ?? []).map((item) =>
+                            item.id === focusArea.id ? { ...item, notes: event.target.value } : item,
+                          ),
+                        }))
+                      }
+                    />
+                  </div>
+                ))}
+                {!(report.focusAreas ?? []).length ? <p className="text-sm text-muted">No focus areas added yet.</p> : null}
+              </div>
+            </div>
+
+            <div className="space-y-2 rounded-xl border border-border bg-bg p-3">
+              <div>
+                <p className="font-medium">Monthly Summary Notes</p>
+                <p className="text-sm text-muted">Keep this short and coach-friendly.</p>
+              </div>
+              <textarea
+                className="min-h-[92px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
+                placeholder="Short monthly summary note"
+                value={report.generalNotes || ''}
+                onChange={(event) => updateReport((current) => ({ ...current, generalNotes: event.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-border bg-bg p-3">
+              <div>
+                <p className="font-medium">Additional Notes</p>
+                <p className="text-sm text-muted">Attendance, injuries, reminders, or anything else the family should know.</p>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Attendance</p>
                   <Input
@@ -662,132 +983,84 @@ export default function ReportsPage() {
 
       {step === 4 && report ? (
         <Card>
-          <CardHeader><CardTitle>Step 4: Review + Generate PDF + Send</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-xl border border-border bg-bg p-3">
-              <p className="font-medium">Summary</p>
-              <p className="text-sm text-muted">Gymnast: {currentGymnast?.name || 'Unknown'} • Month: {formatReportMonth(month)}</p>
-            </div>
-
-            <div className="rounded-xl border border-border bg-bg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="font-medium">Goals</p>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() =>
-                    updateReport((current) => ({
-                      ...current,
-                      goals: [...current.goals, { id: uid(), goal: '', progressNote: '' }],
-                    }))
-                  }
-                >
-                  Add Goal
-                </Button>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Current Projected Level</p>
-                  <Select
-                    value={report.projectedLevel?.level || ''}
-                    onValueChange={(value) =>
-                      updateReport((current) => ({
-                        ...current,
-                        projectedLevel: {
-                          ...current.projectedLevel,
-                          level: value,
-                        },
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select projected level" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {PROJECTED_LEVEL_OPTIONS.map((item) => (
-                        <SelectItem key={item} value={item}>{item}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Projected Level Notes</p>
-                  <Input
-                    placeholder="Notes about projected level"
-                    value={report.projectedLevel?.notes || ''}
-                    onChange={(event) =>
-                      updateReport((current) => ({
-                        ...current,
-                        projectedLevel: {
-                          ...current.projectedLevel,
-                          notes: event.target.value,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-
-              {report.goals.map((goal) => (
-                <div key={goal.id} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-                  <Input
-                    placeholder="Goal"
-                    value={goal.goal}
-                    onChange={(event) =>
-                      updateReport((current) => ({
-                        ...current,
-                        goals: current.goals.map((item) => item.id === goal.id ? { ...item, goal: event.target.value } : item),
-                      }))
-                    }
-                  />
-                  <Input
-                    placeholder="Progress note"
-                    value={goal.progressNote || ''}
-                    onChange={(event) =>
-                      updateReport((current) => ({
-                        ...current,
-                        goals: current.goals.map((item) => item.id === goal.id ? { ...item, progressNote: event.target.value } : item),
-                      }))
-                    }
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() =>
-                      updateReport((current) => ({
-                        ...current,
-                        goals: current.goals.length > 1 ? current.goals.filter((item) => item.id !== goal.id) : current.goals,
-                      }))
-                    }
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))}
-            </div>
-
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle>Step 4: Review</CardTitle>
             <div className="flex flex-wrap gap-2">
               <Button variant="secondary" onClick={() => setStep(3)}>Back</Button>
-              <Button variant="secondary" onClick={async () => {
-                await openReportPdfPreview(report.id, toast)
-              }}>Preview PDF</Button>
-              <Button onClick={async () => {
-                const response = await fetch(`/api/reports/${report.id}/pdf`, { method: 'POST' })
-                if (!response.ok) return toast('PDF generation failed')
-                updateReport((current) => ({ ...current, readiness: 'ready' }))
-                toast('PDF generated and report marked ready')
-              }}>Generate PDF</Button>
-              <Button onClick={async () => {
-                updateReport((current) => ({
-                  ...current,
-                  readiness: 'ready',
-                  sendHistory: [{ id: uid(), sentAt: new Date().toISOString(), status: 'queued', by: data.coachName }, ...current.sendHistory],
-                }))
-                toast('Marked ready to send')
-              }}>Ready to Send</Button>
+              <Button variant="secondary" onClick={markAllEventsComplete}>Mark All Complete</Button>
+              <Button onClick={handlePreviewPdf}>Preview PDF</Button>
             </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-xl border border-border bg-bg p-3">
+              <p className="text-sm text-muted">Review each section below, then preview the PDF. Final ready/send happens on the Email Review page.</p>
+            </div>
+
+            <Accordion type="multiple" className="space-y-2">
+              {EVENTS.map((event) => {
+                const eventReport = report.eventReports[event]
+                const lines = formatEventQuickBreakdown(eventReport)
+                return (
+                  <AccordionItem key={event} value={event} className="rounded-xl border border-border bg-bg px-3">
+                    <AccordionTrigger>
+                      <div className="flex w-full items-center justify-between gap-3 pr-3">
+                        <span className="font-medium">{event}</span>
+                        <Badge variant={eventReport.isComplete ? 'success' : 'warning'}>
+                          {eventReport.isComplete ? 'Complete' : 'Open'}
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-3 pb-3">
+                      {lines.length ? (
+                        <div className="space-y-1 text-sm text-muted">
+                          {lines.map((line, index) => (
+                            <p key={`${event}-${index}`}>{line}</p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted">No details added yet.</p>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setActiveEvent(event)
+                          setStep(2)
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    </AccordionContent>
+                  </AccordionItem>
+                )
+              })}
+
+              {summarySections.map((section) => (
+                <AccordionItem key={section.key} value={section.key} className="rounded-xl border border-border bg-bg px-3">
+                  <AccordionTrigger>
+                    <div className="flex w-full items-center justify-between gap-3 pr-3">
+                      <span className="font-medium">{section.title}</span>
+                      <Badge variant={section.complete ? 'success' : 'warning'}>
+                        {section.complete ? 'Added' : 'Missing'}
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-3 pb-3">
+                    {section.lines.length ? (
+                      <div className="space-y-1 text-sm text-muted">
+                        {section.lines.map((line, index) => (
+                          <p key={`${section.key}-${index}`}>{line}</p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted">Nothing added yet.</p>
+                    )}
+                    <Button type="button" size="sm" variant="secondary" onClick={section.onEdit}>Edit</Button>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </CardContent>
         </Card>
       ) : null}

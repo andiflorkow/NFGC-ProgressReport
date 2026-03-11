@@ -219,6 +219,9 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
       .filter((goal) => goal.goal || goal.progressNote)
       .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | ${goal.progressNote || 'No progress note'}`),
   ]
+  const focusAreaRows = (report.focusAreas ?? [])
+    .filter((item) => item.title.trim() || item.notes?.trim())
+    .map((item) => `• ${item.title}${item.notes?.trim() ? ` | ${item.notes.trim()}` : ''}`)
   const additionalRows = [
     ...(report.generalNotes?.trim() ? [`General: ${report.generalNotes.trim()}`] : []),
     ...(report.attendance?.trim() ? [`Attendance: ${report.attendance.trim()}`] : []),
@@ -236,6 +239,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   ].filter((section) => section.rows.length)
   const rightSections = [
     { title: 'Coachability', rows: coachabilityRows },
+    { title: 'Focus Areas', rows: focusAreaRows },
     { title: 'Additional Notes', rows: additionalRows },
   ].filter((section) => section.rows.length)
 

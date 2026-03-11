@@ -78,6 +78,7 @@ function createDefaultData(): AppData {
         eventReports: baseEventReports,
         behavior: { effort: 3, coachability: 3, focus: 3, respect: 3, comments: '' },
         goals: [{ id: uid(), goal: '', progressNote: '' }],
+        focusAreas: [],
         attendance: '',
         injuries: '',
         reminders: '',
