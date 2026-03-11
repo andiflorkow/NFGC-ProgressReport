@@ -15,6 +15,7 @@ import { openReportPdfPreview } from '../../lib/pdf-preview'
 import { EventName, Report } from '../../types/models'
 
 const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Coachability']
+const FOCUS_AREA_DISABLED_EVENTS: EventName[] = ['Strength/Flexibility', 'Coachability']
 
 const hasGoalContent = (report: Report) =>
   Boolean(
@@ -33,7 +34,9 @@ const getMissingItems = (report: Report) => {
     missing.push(`Incomplete events: ${incompleteEvents.join(', ')}`)
   }
   if (!hasGoalContent(report)) missing.push('Goals')
-  const missingFocusEvents = EVENTS.filter((event) => !(report.eventReports[event].focusAreas ?? []).length)
+  const missingFocusEvents = EVENTS
+    .filter((event) => !FOCUS_AREA_DISABLED_EVENTS.includes(event))
+    .filter((event) => !(report.eventReports[event].focusAreas ?? []).length)
   if (missingFocusEvents.length) missing.push(`Missing event focus areas: ${missingFocusEvents.join(', ')}`)
   if (!report.generalNotes?.trim()) missing.push('Monthly Summary Notes')
   if (!hasAdditionalNotes(report)) missing.push('Additional Notes')

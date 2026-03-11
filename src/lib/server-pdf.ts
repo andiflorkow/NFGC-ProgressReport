@@ -221,12 +221,15 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
 
   const strengthRows = buildEventRows(strengthEvent?.eventNotes, formatSkillRows(strengthEvent?.skills ?? []), strengthEvent?.focusAreas ?? [])
   const coachabilityRows = formatCoachabilityRows(coachabilityEvent?.skills ?? [], coachabilityEvent?.eventNotes)
+  const goalDetailRows = report.goals
+    .filter((goal) => goal.goal || goal.progressNote)
+    .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | ${goal.progressNote || 'No progress note'}`)
+
   const goalsRows = [
     ...(report.projectedLevel?.level ? [`Projected Level: ${report.projectedLevel.level}`] : []),
-    ...(report.projectedLevel?.notes?.trim() ? [`Progress Note: ${report.projectedLevel.notes.trim()}`] : []),
-    ...report.goals
-      .filter((goal) => goal.goal || goal.progressNote)
-      .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | ${goal.progressNote || 'No progress note'}`),
+    ...(report.projectedLevel?.notes?.trim() ? [`Projected Level Notes: ${report.projectedLevel.notes.trim()}`] : []),
+    ...(report.projectedLevel?.notes?.trim() && goalDetailRows.length ? [spacerToken] : []),
+    ...goalDetailRows.flatMap((row, index) => (index === 0 && goalDetailRows.length > 1 ? [row, spacerToken] : [row])),
   ]
   const additionalRows = [
     ...(report.generalNotes?.trim() ? [`General: ${report.generalNotes.trim()}`] : []),

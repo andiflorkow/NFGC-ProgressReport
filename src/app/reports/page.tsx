@@ -20,6 +20,7 @@ const SKILL_STATUSES: SkillStatus[] = ['Not Started', 'Working', 'Consistent', '
 const COACHABILITY_STATUSES: SkillStatus[] = ['1', '2', '3', '4', '5']
 const COACHABILITY_FIELDS = ['Respect', 'Work Ethic', 'Training Habits'] as const
 const OPTIONAL_SKILL_EVENTS: EventName[] = ['Strength/Flexibility']
+const FOCUS_AREA_DISABLED_EVENTS: EventName[] = ['Strength/Flexibility', 'Coachability']
 const DEFAULT_EVENT_SKILL_LIBRARY: Record<EventName, string[]> = {
   Vault: ['Front Handspring', 'Round-Off Entry', 'Handstand Flat Back', 'Block Technique', 'Stick Landing'],
   Bars: ['Pullover', 'Back Hip Circle', 'Cast to Horizontal', 'Kip Drill', 'Dismount Landing'],
@@ -181,6 +182,15 @@ const formatEventQuickBreakdown = (eventReport: Report['eventReports'][EventName
     lines.push(...eventReport.skills.map((skill) => `${skill.name}: ${skill.status}${skill.notes?.trim() ? ` | ${skill.notes.trim()}` : ''}`))
   }
   return lines
+}
+
+const hasEventDisplayContent = (eventReport: Report['eventReports'][EventName], event: EventName) => {
+  const hasNotes = Boolean(eventReport.eventNotes?.trim())
+  const hasSkills = eventReport.skills.length > 0
+  const hasFocus = FOCUS_AREA_DISABLED_EVENTS.includes(event)
+    ? false
+    : Boolean((eventReport.focusAreas ?? []).some((item) => item.title.trim() || item.notes?.trim()))
+  return hasNotes || hasSkills || hasFocus
 }
 
 export default function ReportsPage() {
@@ -373,6 +383,10 @@ export default function ReportsPage() {
     updateReport((current) => {
       const currentEvent = current.eventReports[activeEvent]
       const nextComplete = !currentEvent.isComplete
+      if (nextComplete && !hasEventDisplayContent(currentEvent, activeEvent)) {
+        toast('Add at least one item that appears on the PDF before marking this event complete')
+        return current
+      }
       return {
         ...current,
         eventReports: {
@@ -389,19 +403,30 @@ export default function ReportsPage() {
   }
 
   const markAllEventsComplete = () => {
-    updateReport((current) => ({
-      ...current,
-      eventReports: EVENTS.reduce((acc, event) => {
+    updateReport((current) => {
+      const blockedEvents = EVENTS.filter((event) => !hasEventDisplayContent(current.eventReports[event], event))
+      const nextEventReports = EVENTS.reduce((acc, event) => {
+        const canComplete = !blockedEvents.includes(event)
         acc[event] = {
           ...current.eventReports[event],
-          isComplete: true,
-          completedAt: current.eventReports[event].completedAt || new Date().toISOString(),
-          completedBy: current.eventReports[event].completedBy || data?.coachName,
+          isComplete: canComplete,
+          completedAt: canComplete ? current.eventReports[event].completedAt || new Date().toISOString() : undefined,
+          completedBy: canComplete ? current.eventReports[event].completedBy || data?.coachName : undefined,
         }
         return acc
-      }, {} as Report['eventReports']),
-    }))
-    toast('All events marked complete')
+      }, {} as Report['eventReports'])
+
+      if (blockedEvents.length) {
+        toast(`These events need display content first: ${blockedEvents.join(', ')}`)
+      } else {
+        toast('All events marked complete')
+      }
+
+      return {
+        ...current,
+        eventReports: nextEventReports,
+      }
+    })
   }
 
   const handlePreviewPdf = async () => {
@@ -626,102 +651,104 @@ export default function ReportsPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold">Focus Areas</p>
-                  <div className="grid max-w-lg gap-2 md:grid-cols-[minmax(0,20rem)_auto]">
-                    <div className="relative">
-                      <Input
-                        placeholder="Search or add focus area..."
-                        value={focusAreaInput[activeEvent]}
-                        onChange={(event) => setFocusAreaInput((current) => ({ ...current, [activeEvent]: event.target.value }))}
-                        onFocus={() => setShowFocusAreaSuggestions(true)}
-                        onBlur={() => setTimeout(() => setShowFocusAreaSuggestions(false), 120)}
-                      />
-                      {showFocusAreaSuggestions ? (
-                        <div className="absolute z-10 mt-1 max-h-44 w-full overflow-auto rounded-lg border border-border bg-surface shadow-md">
-                          {availableFocusAreas
-                            .filter((item) => item.toLowerCase().includes(focusAreaInput[activeEvent].toLowerCase().trim()))
-                            .map((item) => (
-                              <button
-                                key={item}
-                                type="button"
-                                className="block w-full px-3 py-2 text-left text-sm hover:bg-bg"
-                                onMouseDown={(event) => {
-                                  event.preventDefault()
-                                  setFocusAreaInput((current) => ({ ...current, [activeEvent]: item }))
-                                }}
-                              >
-                                {item}
-                              </button>
-                            ))}
-                        </div>
-                      ) : null}
+                {!FOCUS_AREA_DISABLED_EVENTS.includes(activeEvent) ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold">Focus Areas</p>
+                    <div className="grid max-w-lg gap-2 md:grid-cols-[minmax(0,20rem)_auto]">
+                      <div className="relative">
+                        <Input
+                          placeholder="Search or add focus area..."
+                          value={focusAreaInput[activeEvent]}
+                          onChange={(event) => setFocusAreaInput((current) => ({ ...current, [activeEvent]: event.target.value }))}
+                          onFocus={() => setShowFocusAreaSuggestions(true)}
+                          onBlur={() => setTimeout(() => setShowFocusAreaSuggestions(false), 120)}
+                        />
+                        {showFocusAreaSuggestions ? (
+                          <div className="absolute z-10 mt-1 max-h-44 w-full overflow-auto rounded-lg border border-border bg-surface shadow-md">
+                            {availableFocusAreas
+                              .filter((item) => item.toLowerCase().includes(focusAreaInput[activeEvent].toLowerCase().trim()))
+                              .map((item) => (
+                                <button
+                                  key={item}
+                                  type="button"
+                                  className="block w-full px-3 py-2 text-left text-sm hover:bg-bg"
+                                  onMouseDown={(event) => {
+                                    event.preventDefault()
+                                    setFocusAreaInput((current) => ({ ...current, [activeEvent]: item }))
+                                  }}
+                                >
+                                  {item}
+                                </button>
+                              ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-10"
+                        disabled={!focusAreaInput[activeEvent].trim()}
+                        onClick={() => addFocusAreaToActiveEvent(focusAreaInput[activeEvent])}
+                      >
+                        Add
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="h-10"
-                      disabled={!focusAreaInput[activeEvent].trim()}
-                      onClick={() => addFocusAreaToActiveEvent(focusAreaInput[activeEvent])}
-                    >
-                      Add
-                    </Button>
-                  </div>
 
-                  {(report.eventReports[activeEvent].focusAreas ?? []).length ? (
-                    <div className="space-y-2">
-                      {(report.eventReports[activeEvent].focusAreas ?? []).map((focusArea) => (
-                        <div key={focusArea.id} className="rounded-xl border border-border bg-bg p-2.5">
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <p className="text-sm font-semibold">{focusArea.title}</p>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
+                    {(report.eventReports[activeEvent].focusAreas ?? []).length ? (
+                      <div className="space-y-2">
+                        {(report.eventReports[activeEvent].focusAreas ?? []).map((focusArea) => (
+                          <div key={focusArea.id} className="rounded-xl border border-border bg-bg p-2.5">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <p className="text-sm font-semibold">{focusArea.title}</p>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                  updateReport((current) => ({
+                                    ...current,
+                                    eventReports: {
+                                      ...current.eventReports,
+                                      [activeEvent]: {
+                                        ...current.eventReports[activeEvent],
+                                        focusAreas: (current.eventReports[activeEvent].focusAreas ?? []).filter(
+                                          (item) => item.id !== focusArea.id,
+                                        ),
+                                      },
+                                    },
+                                  }))
+                                }
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                            <textarea
+                              className="min-h-[62px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
+                              placeholder="Brief focus description (optional)"
+                              value={focusArea.notes || ''}
+                              onChange={(event) =>
                                 updateReport((current) => ({
                                   ...current,
                                   eventReports: {
                                     ...current.eventReports,
                                     [activeEvent]: {
                                       ...current.eventReports[activeEvent],
-                                      focusAreas: (current.eventReports[activeEvent].focusAreas ?? []).filter(
-                                        (item) => item.id !== focusArea.id,
+                                      focusAreas: (current.eventReports[activeEvent].focusAreas ?? []).map((item) =>
+                                        item.id === focusArea.id ? { ...item, notes: event.target.value } : item,
                                       ),
                                     },
                                   },
                                 }))
                               }
-                            >
-                              Remove
-                            </Button>
+                            />
                           </div>
-                          <textarea
-                            className="min-h-[62px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
-                            placeholder="Brief focus description (optional)"
-                            value={focusArea.notes || ''}
-                            onChange={(event) =>
-                              updateReport((current) => ({
-                                ...current,
-                                eventReports: {
-                                  ...current.eventReports,
-                                  [activeEvent]: {
-                                    ...current.eventReports[activeEvent],
-                                    focusAreas: (current.eventReports[activeEvent].focusAreas ?? []).map((item) =>
-                                      item.id === focusArea.id ? { ...item, notes: event.target.value } : item,
-                                    ),
-                                  },
-                                },
-                              }))
-                            }
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted">No focus areas added for this event yet.</p>
-                  )}
-                </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted">No focus areas added for this event yet.</p>
+                    )}
+                  </div>
+                ) : null}
 
                 <div>
                   <p className="mb-1 text-sm font-semibold">Skill Progress</p>
@@ -779,7 +806,7 @@ export default function ReportsPage() {
 
                     <p className="mb-1 mt-2 text-xs font-semibold uppercase tracking-wide text-muted">Notes</p>
                     <textarea
-                      className="min-h-[68px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
+                      className="min-h-[56px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
                       placeholder={activeEvent === 'Coachability' ? `${skill.name} note (optional)` : 'Quick note (optional)'}
                       value={skill.notes || ''}
                       onChange={(event) =>
