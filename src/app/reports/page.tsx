@@ -35,7 +35,7 @@ const DEFAULT_EVENT_SKILL_LIBRARY: Record<EventName, string[]> = {
   'Strength/Flexibility': [],
   Coachability: [],
 }
-const FOCUS_AREA_LIBRARY = ['Form', 'Strength', 'Presentation', 'Confidence', 'Consistency', 'Flexibility', 'Power', 'Endurance', 'Mental Focus', 'Balance', 'Agility']
+const FOCUS_AREA_LIBRARY = ['Form', 'Strength', 'Presentation', 'Confidence', 'Consistency', 'Flexibility', 'Power', 'Endurance', 'Mental Focus', 'Balance', 'Control']
 
 const LEVEL_SKILL_LIBRARY: Partial<Record<string, Partial<Record<EventName, string[]>>>> = {
   'Xcel Bronze': {
