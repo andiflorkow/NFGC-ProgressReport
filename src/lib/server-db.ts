@@ -33,6 +33,7 @@ function createDefaultData(): AppData {
       acc[event] = {
         event,
         eventNotes: '',
+        focusAreas: [],
         isComplete: false,
         lastUpdatedAt: nowIso(),
         lastUpdatedBy: 'Coach Andi',

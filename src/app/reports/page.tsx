@@ -123,6 +123,7 @@ const normalizeCoachabilityStatus = (status?: SkillStatus) => {
 const buildEmptyEventReport = (event: EventName, coachName: string): Report['eventReports'][EventName] => ({
   event,
   eventNotes: '',
+  focusAreas: [],
   isComplete: false,
   lastUpdatedAt: new Date().toISOString(),
   lastUpdatedBy: coachName,
@@ -156,7 +157,6 @@ const normalizeReportForCurrentEvents = (report: Report, coachName: string, gymn
     ...report,
     eventReports: nextEventReports,
     goals: report.goals?.length ? report.goals : [{ id: uid(), goal: '', progressNote: '' }],
-    focusAreas: report.focusAreas ?? [],
     projectedLevel: report.projectedLevel ?? { level: gymnastLevel, notes: '' },
   }
 }
@@ -174,6 +174,9 @@ const hasAdditionalNotes = (report: Report) =>
 const formatEventQuickBreakdown = (eventReport: Report['eventReports'][EventName]) => {
   const lines: string[] = []
   if (eventReport.eventNotes?.trim()) lines.push(eventReport.eventNotes.trim())
+  if ((eventReport.focusAreas ?? []).length) {
+    lines.push(...(eventReport.focusAreas ?? []).map((item) => `Focus: ${item.title}${item.notes?.trim() ? ` | ${item.notes.trim()}` : ''}`))
+  }
   if (eventReport.skills.length) {
     lines.push(...eventReport.skills.map((skill) => `${skill.name}: ${skill.status}${skill.notes?.trim() ? ` | ${skill.notes.trim()}` : ''}`))
   }
@@ -192,7 +195,7 @@ export default function ReportsPage() {
   const [savedFlag, setSavedFlag] = useState('Saved')
   const [addSkillInput, setAddSkillInput] = useState<Record<EventName, string>>(emptyEventValues)
   const [showSkillSuggestions, setShowSkillSuggestions] = useState(false)
-  const [focusAreaInput, setFocusAreaInput] = useState('')
+  const [focusAreaInput, setFocusAreaInput] = useState<Record<EventName, string>>(emptyEventValues)
   const [showFocusAreaSuggestions, setShowFocusAreaSuggestions] = useState(false)
 
   useEffect(() => {
@@ -231,7 +234,6 @@ export default function ReportsPage() {
       eventReports: baseEventReports,
       behavior: { effort: 3, coachability: 3, focus: 3, respect: 3, comments: '' },
       goals: [{ id: uid(), goal: '', progressNote: '' }],
-      focusAreas: [],
       projectedLevel: { level: selectedGymnast?.level || '', notes: '' },
       attendance: '',
       injuries: '',
@@ -299,9 +301,9 @@ export default function ReportsPage() {
 
   const availableFocusAreas = useMemo(() => {
     if (!report) return FOCUS_AREA_LIBRARY
-    const existing = new Set((report.focusAreas ?? []).map((item) => item.title.trim().toLowerCase()))
+    const existing = new Set((report.eventReports[activeEvent].focusAreas ?? []).map((item) => item.title.trim().toLowerCase()))
     return FOCUS_AREA_LIBRARY.filter((item) => !existing.has(item.toLowerCase()))
-  }, [report])
+  }, [report, activeEvent])
 
   const currentEventIsComplete = Boolean(report?.eventReports[activeEvent].isComplete)
   const eventNotesLabel = activeEvent === 'Strength/Flexibility' || activeEvent === 'Coachability' ? 'Notes' : 'Event Notes'
@@ -346,17 +348,25 @@ export default function ReportsPage() {
     }))
   }
 
-  const addFocusArea = (title: string) => {
+  const addFocusAreaToActiveEvent = (title: string) => {
     const normalized = title.trim()
     if (!normalized || !report) return
-    const alreadyExists = (report.focusAreas ?? []).some((item) => item.title.trim().toLowerCase() === normalized.toLowerCase())
+    const alreadyExists = (report.eventReports[activeEvent].focusAreas ?? []).some(
+      (item) => item.title.trim().toLowerCase() === normalized.toLowerCase(),
+    )
     if (alreadyExists) return toast('That focus area is already added')
 
     updateReport((current) => ({
       ...current,
-      focusAreas: [...(current.focusAreas ?? []), { id: uid(), title: normalized, notes: '' }],
+      eventReports: {
+        ...current.eventReports,
+        [activeEvent]: {
+          ...current.eventReports[activeEvent],
+          focusAreas: [...(current.eventReports[activeEvent].focusAreas ?? []), { id: uid(), title: normalized, notes: '' }],
+        },
+      },
     }))
-    setFocusAreaInput('')
+    setFocusAreaInput((current) => ({ ...current, [activeEvent]: '' }))
   }
 
   const toggleActiveEventComplete = () => {
@@ -423,15 +433,6 @@ export default function ReportsPage() {
               .filter((goal) => goal.goal.trim() || goal.progressNote?.trim())
               .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'}${goal.progressNote?.trim() ? ` | ${goal.progressNote.trim()}` : ''}`),
           ],
-          onEdit: () => setStep(3),
-        },
-        {
-          key: 'focus-areas',
-          title: 'Focus Areas',
-          complete: Boolean(report.focusAreas?.some((item) => item.title.trim() || item.notes?.trim())),
-          lines: (report.focusAreas ?? [])
-            .filter((item) => item.title.trim() || item.notes?.trim())
-            .map((item) => `${item.title}${item.notes?.trim() ? `: ${item.notes.trim()}` : ''}`),
           onEdit: () => setStep(3),
         },
         {
@@ -596,8 +597,8 @@ export default function ReportsPage() {
                       </div>
                       <Button
                         type="button"
-                        size="sm"
                         variant="secondary"
+                        className="h-10"
                         disabled={!addSkillInput[activeEvent].trim()}
                         onClick={() => addSkillToActiveEvent(addSkillInput[activeEvent])}
                       >
@@ -623,6 +624,103 @@ export default function ReportsPage() {
                       }))
                     }
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">Focus Areas</p>
+                  <div className="grid max-w-lg gap-2 md:grid-cols-[minmax(0,20rem)_auto]">
+                    <div className="relative">
+                      <Input
+                        placeholder="Search or add focus area..."
+                        value={focusAreaInput[activeEvent]}
+                        onChange={(event) => setFocusAreaInput((current) => ({ ...current, [activeEvent]: event.target.value }))}
+                        onFocus={() => setShowFocusAreaSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowFocusAreaSuggestions(false), 120)}
+                      />
+                      {showFocusAreaSuggestions ? (
+                        <div className="absolute z-10 mt-1 max-h-44 w-full overflow-auto rounded-lg border border-border bg-surface shadow-md">
+                          {availableFocusAreas
+                            .filter((item) => item.toLowerCase().includes(focusAreaInput[activeEvent].toLowerCase().trim()))
+                            .map((item) => (
+                              <button
+                                key={item}
+                                type="button"
+                                className="block w-full px-3 py-2 text-left text-sm hover:bg-bg"
+                                onMouseDown={(event) => {
+                                  event.preventDefault()
+                                  setFocusAreaInput((current) => ({ ...current, [activeEvent]: item }))
+                                }}
+                              >
+                                {item}
+                              </button>
+                            ))}
+                        </div>
+                      ) : null}
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-10"
+                      disabled={!focusAreaInput[activeEvent].trim()}
+                      onClick={() => addFocusAreaToActiveEvent(focusAreaInput[activeEvent])}
+                    >
+                      Add
+                    </Button>
+                  </div>
+
+                  {(report.eventReports[activeEvent].focusAreas ?? []).length ? (
+                    <div className="space-y-2">
+                      {(report.eventReports[activeEvent].focusAreas ?? []).map((focusArea) => (
+                        <div key={focusArea.id} className="rounded-xl border border-border bg-bg p-2.5">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold">{focusArea.title}</p>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() =>
+                                updateReport((current) => ({
+                                  ...current,
+                                  eventReports: {
+                                    ...current.eventReports,
+                                    [activeEvent]: {
+                                      ...current.eventReports[activeEvent],
+                                      focusAreas: (current.eventReports[activeEvent].focusAreas ?? []).filter(
+                                        (item) => item.id !== focusArea.id,
+                                      ),
+                                    },
+                                  },
+                                }))
+                              }
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                          <textarea
+                            className="min-h-[62px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
+                            placeholder="Brief focus description (optional)"
+                            value={focusArea.notes || ''}
+                            onChange={(event) =>
+                              updateReport((current) => ({
+                                ...current,
+                                eventReports: {
+                                  ...current.eventReports,
+                                  [activeEvent]: {
+                                    ...current.eventReports[activeEvent],
+                                    focusAreas: (current.eventReports[activeEvent].focusAreas ?? []).map((item) =>
+                                      item.id === focusArea.id ? { ...item, notes: event.target.value } : item,
+                                    ),
+                                  },
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted">No focus areas added for this event yet.</p>
+                  )}
                 </div>
 
                 <div>
@@ -735,28 +833,13 @@ export default function ReportsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Step 3: Monthly Summary</CardTitle>
+            <p className="text-sm text-muted">{formatReportMonth(month)}</p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-3 rounded-xl border border-border bg-bg p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-medium">Goals</p>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={() =>
-                    updateReport((current) => ({
-                      ...current,
-                      goals: [...current.goals, { id: uid(), goal: '', progressNote: '' }],
-                    }))
-                  }
-                >
-                  Add Goal
-                </Button>
-              </div>
-
+            <div className="space-y-2">
+              <p className="font-medium">Goals</p>
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-3 rounded-xl border border-border bg-surface p-3">
+                <div className="space-y-3 rounded-xl border border-border bg-bg p-3">
                   <p className="text-sm font-medium">Current Projected Level</p>
                   <div className="space-y-1">
                     <p className="text-sm text-muted">Projected level</p>
@@ -801,8 +884,23 @@ export default function ReportsPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3 rounded-xl border border-border bg-surface p-3">
-                  <p className="text-sm font-medium">Additional Goals</p>
+                <div className="space-y-3 rounded-xl border border-border bg-bg p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">Additional Goals</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      onClick={() =>
+                        updateReport((current) => ({
+                          ...current,
+                          goals: [...current.goals, { id: uid(), goal: '', progressNote: '' }],
+                        }))
+                      }
+                    >
+                      Add Goal
+                    </Button>
+                  </div>
                   <div className="space-y-2">
                     {report.goals.map((goal) => (
                       <div key={goal.id} className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
@@ -849,103 +947,22 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            <div className="space-y-3 rounded-xl border border-border bg-bg p-3">
-              <div>
-                <p className="font-medium">Focus Areas</p>
-                <p className="text-sm text-muted">Add a focus area and a short coaching description for this month.</p>
-              </div>
-              <div className="grid max-w-lg gap-2 md:grid-cols-[minmax(0,20rem)_auto]">
-                <div className="relative">
-                  <Input
-                    placeholder="Search or add focus area..."
-                    value={focusAreaInput}
-                    onChange={(event) => setFocusAreaInput(event.target.value)}
-                    onFocus={() => setShowFocusAreaSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowFocusAreaSuggestions(false), 120)}
-                  />
-                  {showFocusAreaSuggestions ? (
-                    <div className="absolute z-10 mt-1 max-h-44 w-full overflow-auto rounded-lg border border-border bg-surface shadow-md">
-                      {availableFocusAreas
-                        .filter((item) => item.toLowerCase().includes(focusAreaInput.toLowerCase().trim()))
-                        .map((item) => (
-                          <button
-                            key={item}
-                            type="button"
-                            className="block w-full px-3 py-2 text-left text-sm hover:bg-bg"
-                            onMouseDown={(event) => {
-                              event.preventDefault()
-                              setFocusAreaInput(item)
-                            }}
-                          >
-                            {item}
-                          </button>
-                        ))}
-                    </div>
-                  ) : null}
-                </div>
-                <Button type="button" size="sm" variant="secondary" disabled={!focusAreaInput.trim()} onClick={() => addFocusArea(focusAreaInput)}>
-                  Add
-                </Button>
-              </div>
-
-              <div className="space-y-2">
-                {(report.focusAreas ?? []).map((focusArea) => (
-                  <div key={focusArea.id} className="rounded-xl border border-border bg-surface p-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold">{focusArea.title}</p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          updateReport((current) => ({
-                            ...current,
-                            focusAreas: (current.focusAreas ?? []).filter((item) => item.id !== focusArea.id),
-                          }))
-                        }
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                    <textarea
-                      className="min-h-[76px] w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-primary"
-                      placeholder="Brief description or coaching note"
-                      value={focusArea.notes || ''}
-                      onChange={(event) =>
-                        updateReport((current) => ({
-                          ...current,
-                          focusAreas: (current.focusAreas ?? []).map((item) =>
-                            item.id === focusArea.id ? { ...item, notes: event.target.value } : item,
-                          ),
-                        }))
-                      }
-                    />
-                  </div>
-                ))}
-                {!(report.focusAreas ?? []).length ? <p className="text-sm text-muted">No focus areas added yet.</p> : null}
+            <div className="space-y-2">
+              <p className="font-medium">Monthly Summary Notes</p>
+              <div className="rounded-xl border border-border bg-bg p-3">
+                <textarea
+                  className="min-h-[92px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
+                  placeholder="Short monthly summary note"
+                  value={report.generalNotes || ''}
+                  onChange={(event) => updateReport((current) => ({ ...current, generalNotes: event.target.value }))}
+                />
               </div>
             </div>
 
-            <div className="space-y-2 rounded-xl border border-border bg-bg p-3">
-              <div>
-                <p className="font-medium">Monthly Summary Notes</p>
-                <p className="text-sm text-muted">Keep this short and coach-friendly.</p>
-              </div>
-              <textarea
-                className="min-h-[92px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-primary"
-                placeholder="Short monthly summary note"
-                value={report.generalNotes || ''}
-                onChange={(event) => updateReport((current) => ({ ...current, generalNotes: event.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-3 rounded-xl border border-border bg-bg p-3">
-              <div>
-                <p className="font-medium">Additional Notes</p>
-                <p className="text-sm text-muted">Attendance, injuries, reminders, or anything else the family should know.</p>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <p className="font-medium">Additional Notes</p>
+              <div className="rounded-xl border border-border bg-bg p-3">
+                <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
                   <p className="text-sm font-medium">Attendance</p>
                   <Input
@@ -969,6 +986,7 @@ export default function ReportsPage() {
                     value={report.reminders || ''}
                     onChange={(event) => updateReport((current) => ({ ...current, reminders: event.target.value }))}
                   />
+                </div>
                 </div>
               </div>
             </div>

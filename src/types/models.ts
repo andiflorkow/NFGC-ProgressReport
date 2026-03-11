@@ -42,6 +42,7 @@ export interface SkillProgress {
 export interface EventReport {
   event: EventName
   skills: SkillProgress[]
+  focusAreas?: FocusAreaItem[]
   eventNotes?: string
   isComplete?: boolean
   completedAt?: string

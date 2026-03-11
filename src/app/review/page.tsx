@@ -33,7 +33,8 @@ const getMissingItems = (report: Report) => {
     missing.push(`Incomplete events: ${incompleteEvents.join(', ')}`)
   }
   if (!hasGoalContent(report)) missing.push('Goals')
-  if (!(report.focusAreas ?? []).some((item) => item.title.trim() || item.notes?.trim())) missing.push('Focus Areas')
+  const missingFocusEvents = EVENTS.filter((event) => !(report.eventReports[event].focusAreas ?? []).length)
+  if (missingFocusEvents.length) missing.push(`Missing event focus areas: ${missingFocusEvents.join(', ')}`)
   if (!report.generalNotes?.trim()) missing.push('Monthly Summary Notes')
   if (!hasAdditionalNotes(report)) missing.push('Additional Notes')
   return missing
@@ -46,6 +47,9 @@ const getQuickSections = (report: Report) => [
     complete: Boolean(report.eventReports[event].isComplete),
     lines: [
       ...(report.eventReports[event].eventNotes?.trim() ? [report.eventReports[event].eventNotes.trim()] : []),
+      ...(report.eventReports[event].focusAreas ?? []).map(
+        (focus) => `Focus: ${focus.title}${focus.notes?.trim() ? ` | ${focus.notes.trim()}` : ''}`,
+      ),
       ...report.eventReports[event].skills.map(
         (skill) => `${skill.name}: ${skill.status}${skill.notes?.trim() ? ` | ${skill.notes.trim()}` : ''}`,
       ),
@@ -57,15 +61,6 @@ const getQuickSections = (report: Report) => [
     title: 'Monthly Summary',
     complete: Boolean(report.generalNotes?.trim()),
     lines: report.generalNotes?.trim() ? [report.generalNotes.trim()] : [],
-    editHref: `/reports?gymnastId=${report.gymnastId}&month=${report.month}`,
-  },
-  {
-    key: 'focus',
-    title: 'Focus Areas',
-    complete: Boolean((report.focusAreas ?? []).some((item) => item.title.trim() || item.notes?.trim())),
-    lines: (report.focusAreas ?? [])
-      .filter((item) => item.title.trim() || item.notes?.trim())
-      .map((item) => `${item.title}${item.notes?.trim() ? `: ${item.notes.trim()}` : ''}`),
     editHref: `/reports?gymnastId=${report.gymnastId}&month=${report.month}`,
   },
   {

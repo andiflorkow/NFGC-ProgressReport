@@ -180,9 +180,18 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     y = renderSection(side, y, contentWidth, title, rows)
   }
 
-  const buildEventRows = (eventNotes?: string, skillRows: string[] = []) => {
+  const buildEventRows = (
+    eventNotes?: string,
+    skillRows: string[] = [],
+    focusAreas: Array<{ title: string; notes?: string }> = [],
+  ) => {
     const rows: string[] = []
     if (eventNotes?.trim()) rows.push(eventNotes.trim())
+    if (focusAreas.length) {
+      if (rows.length) rows.push(spacerToken)
+      rows.push('Focus Areas:')
+      rows.push(...focusAreas.map((item) => `• ${item.title}${item.notes?.trim() ? ` | ${item.notes.trim()}` : ''}`))
+    }
     if (skillRows.length) {
       if (rows.length) rows.push(spacerToken)
       rows.push('Skill Progress:')
@@ -203,14 +212,14 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
 
   for (const eventName of CORE_EVENTS) {
     const event = getEvent(eventName)
-    const rows = buildEventRows(event?.eventNotes, formatSkillRows(event?.skills ?? []))
+    const rows = buildEventRows(event?.eventNotes, formatSkillRows(event?.skills ?? []), event?.focusAreas ?? [])
     await drawSection(eventName, rows)
   }
 
   const strengthEvent = getEvent('Strength/Flexibility')
   const coachabilityEvent = getEvent('Coachability')
 
-  const strengthRows = buildEventRows(strengthEvent?.eventNotes, formatSkillRows(strengthEvent?.skills ?? []))
+  const strengthRows = buildEventRows(strengthEvent?.eventNotes, formatSkillRows(strengthEvent?.skills ?? []), strengthEvent?.focusAreas ?? [])
   const coachabilityRows = formatCoachabilityRows(coachabilityEvent?.skills ?? [], coachabilityEvent?.eventNotes)
   const goalsRows = [
     ...(report.projectedLevel?.level ? [`Projected Level: ${report.projectedLevel.level}`] : []),
@@ -219,9 +228,6 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
       .filter((goal) => goal.goal || goal.progressNote)
       .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | ${goal.progressNote || 'No progress note'}`),
   ]
-  const focusAreaRows = (report.focusAreas ?? [])
-    .filter((item) => item.title.trim() || item.notes?.trim())
-    .map((item) => `• ${item.title}${item.notes?.trim() ? ` | ${item.notes.trim()}` : ''}`)
   const additionalRows = [
     ...(report.generalNotes?.trim() ? [`General: ${report.generalNotes.trim()}`] : []),
     ...(report.attendance?.trim() ? [`Attendance: ${report.attendance.trim()}`] : []),
@@ -239,7 +245,6 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   ].filter((section) => section.rows.length)
   const rightSections = [
     { title: 'Coachability', rows: coachabilityRows },
-    { title: 'Focus Areas', rows: focusAreaRows },
     { title: 'Additional Notes', rows: additionalRows },
   ].filter((section) => section.rows.length)
 
