@@ -18,7 +18,13 @@ const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibi
 const STEPS = [1, 2, 3, 4] as const
 const SKILL_STATUSES: SkillStatus[] = ['Not Started', 'Working', 'Consistent', 'Competition Ready']
 const COACHABILITY_STATUSES: SkillStatus[] = ['1', '2', '3', '4', '5']
+const STRENGTH_FLEXIBILITY_STATUSES: SkillStatus[] = [
+  'Needs More Focus',
+  'Meets Appropriate Level Expectations',
+  'Exceeds Expectations',
+]
 const COACHABILITY_FIELDS = ['Respect', 'Work Ethic', 'Training Habits'] as const
+const STRENGTH_FLEXIBILITY_FIELDS = ['Strength', 'Flexibility'] as const
 const OPTIONAL_SKILL_EVENTS: EventName[] = ['Strength/Flexibility']
 const FOCUS_AREA_DISABLED_EVENTS: EventName[] = ['Strength/Flexibility', 'Coachability']
 const DEFAULT_EVENT_SKILL_LIBRARY: Record<EventName, string[]> = {
@@ -108,6 +114,13 @@ const buildCoachabilitySkills = () =>
     notes: '',
   }))
 
+const buildStrengthFlexibilitySkills = () =>
+  STRENGTH_FLEXIBILITY_FIELDS.map((name) => ({
+    name,
+    status: 'Meets Appropriate Level Expectations' as SkillStatus,
+    notes: '',
+  }))
+
 const normalizeCoachabilityStatus = (status?: SkillStatus) => {
   if (!status) return '3' as SkillStatus
   if (status === 'Exceeding Expectations') return '5' as SkillStatus
@@ -121,6 +134,20 @@ const normalizeCoachabilityStatus = (status?: SkillStatus) => {
   return status
 }
 
+const normalizeStrengthFlexibilityStatus = (status?: SkillStatus) => {
+  if (!status) return 'Meets Appropriate Level Expectations' as SkillStatus
+  if (status === 'Needs Support' || status === 'Not Started' || status === '1' || status === '2') {
+    return 'Needs More Focus' as SkillStatus
+  }
+  if (status === 'Working/Improving' || status === 'Working' || status === '3' || status === '4') {
+    return 'Meets Appropriate Level Expectations' as SkillStatus
+  }
+  if (status === 'Meeting Expectations' || status === 'Exceeding Expectations' || status === 'Consistent' || status === 'Competition Ready' || status === '5') {
+    return 'Exceeds Expectations' as SkillStatus
+  }
+  return status
+}
+
 const buildEmptyEventReport = (event: EventName, coachName: string): Report['eventReports'][EventName] => ({
   event,
   eventNotes: '',
@@ -128,7 +155,7 @@ const buildEmptyEventReport = (event: EventName, coachName: string): Report['eve
   isComplete: false,
   lastUpdatedAt: new Date().toISOString(),
   lastUpdatedBy: coachName,
-  skills: event === 'Coachability' ? buildCoachabilitySkills() : [],
+  skills: event === 'Coachability' ? buildCoachabilitySkills() : event === 'Strength/Flexibility' ? buildStrengthFlexibilitySkills() : [],
 })
 
 const normalizeReportForCurrentEvents = (report: Report, coachName: string, gymnastLevel = ''): Report => {
@@ -151,6 +178,18 @@ const normalizeReportForCurrentEvents = (report: Report, coachName: string, gymn
                   if (!existing) return { name: fieldName, status: '3' as SkillStatus, notes: '' }
                   return { ...existing, status: normalizeCoachabilityStatus(existing.status) }
                 })
+              : event === 'Strength/Flexibility'
+                ? STRENGTH_FLEXIBILITY_FIELDS.map((fieldName) => {
+                    const existing = currentSkills.find((skill) => skill.name === fieldName)
+                    if (!existing) {
+                      return {
+                        name: fieldName,
+                        status: 'Meets Appropriate Level Expectations' as SkillStatus,
+                        notes: '',
+                      }
+                    }
+                    return { ...existing, status: normalizeStrengthFlexibilityStatus(existing.status) }
+                  })
               : currentSkills,
         }
       : fallback
@@ -588,7 +627,7 @@ export default function ReportsPage() {
                   </Badge>
                 </div>
 
-                {activeEvent !== 'Coachability' ? (
+                {activeEvent !== 'Coachability' && activeEvent !== 'Strength/Flexibility' ? (
                   <div className="space-y-2">
                     <p className="text-sm font-semibold">Add Skill</p>
                     {OPTIONAL_SKILL_EVENTS.includes(activeEvent) ? (
@@ -778,7 +817,12 @@ export default function ReportsPage() {
 
                     <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Status</p>
                     <div className="flex flex-wrap gap-1">
-                      {(activeEvent === 'Coachability' ? COACHABILITY_STATUSES : SKILL_STATUSES).map((status) => (
+                      {(activeEvent === 'Coachability'
+                        ? COACHABILITY_STATUSES
+                        : activeEvent === 'Strength/Flexibility'
+                          ? STRENGTH_FLEXIBILITY_STATUSES
+                          : SKILL_STATUSES
+                      ).map((status) => (
                         <button
                           key={status}
                           type="button"

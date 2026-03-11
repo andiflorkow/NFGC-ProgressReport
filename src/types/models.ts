@@ -13,6 +13,9 @@ export type SkillStatus =
   | 'Meeting Expectations'
   | 'Working/Improving'
   | 'Needs Support'
+  | 'Needs More Focus'
+  | 'Meets Appropriate Level Expectations'
+  | 'Exceeds Expectations'
 export type EventName = 'Vault' | 'Bars' | 'Beam' | 'Floor' | 'Strength/Flexibility' | 'Coachability'
 
 export interface Guardian {
