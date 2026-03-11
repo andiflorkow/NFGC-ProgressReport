@@ -132,23 +132,26 @@ const buildEmptyEventReport = (event: EventName, coachName: string): Report['eve
 })
 
 const normalizeReportForCurrentEvents = (report: Report, coachName: string, gymnastLevel = ''): Report => {
-  const rawEventReports = report.eventReports as unknown as Record<string, Report['eventReports'][EventName]>
+  const rawEventReports = (report.eventReports ?? {}) as unknown as Record<string, Partial<Report['eventReports'][EventName]>>
   const nextEventReports = EVENTS.reduce((acc, event) => {
     const current = rawEventReports[event] ?? (event === 'Coachability' ? rawEventReports.Behavior : undefined)
     const fallback = buildEmptyEventReport(event, coachName)
+    const currentSkills = Array.isArray(current?.skills) ? current.skills : []
+    const currentFocusAreas = Array.isArray(current?.focusAreas) ? current.focusAreas : []
     acc[event] = current
       ? {
           ...fallback,
           ...current,
           event,
+          focusAreas: currentFocusAreas,
           skills:
             event === 'Coachability'
               ? COACHABILITY_FIELDS.map((fieldName) => {
-                  const existing = current.skills.find((skill) => skill.name === fieldName)
+                  const existing = currentSkills.find((skill) => skill.name === fieldName)
                   if (!existing) return { name: fieldName, status: '3' as SkillStatus, notes: '' }
                   return { ...existing, status: normalizeCoachabilityStatus(existing.status) }
                 })
-              : current.skills,
+              : currentSkills,
         }
       : fallback
     return acc
@@ -166,7 +169,7 @@ const hasGoalContent = (report: Report) =>
   Boolean(
     report.projectedLevel?.level?.trim() ||
       report.projectedLevel?.notes?.trim() ||
-      report.goals.some((goal) => goal.goal.trim() || goal.progressNote?.trim()),
+      (report.goals ?? []).some((goal) => goal.goal.trim() || goal.progressNote?.trim()),
   )
 
 const hasAdditionalNotes = (report: Report) =>
@@ -292,7 +295,7 @@ export default function ReportsPage() {
   const requiredStepOneComplete = Boolean(gymnastId && month)
   const completedEvents = useMemo(() => {
     if (!report) return 0
-    return EVENTS.filter((event) => report.eventReports[event].isComplete).length
+    return EVENTS.filter((event) => report.eventReports[event]?.isComplete).length
   }, [report])
 
   const levelSkillLibrary = useMemo(() => {
@@ -315,7 +318,7 @@ export default function ReportsPage() {
     return FOCUS_AREA_LIBRARY.filter((item) => !existing.has(item.toLowerCase()))
   }, [report, activeEvent])
 
-  const currentEventIsComplete = Boolean(report?.eventReports[activeEvent].isComplete)
+  const currentEventIsComplete = Boolean(report?.eventReports[activeEvent]?.isComplete)
   const eventNotesLabel = activeEvent === 'Strength/Flexibility' || activeEvent === 'Coachability' ? 'Notes' : 'Event Notes'
   const stepSummaryText = currentGymnast
     ? `${currentGymnast.name} • Level ${currentGymnast.level} • ${formatReportMonth(month)}`

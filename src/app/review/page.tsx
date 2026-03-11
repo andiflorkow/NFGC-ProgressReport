@@ -12,10 +12,75 @@ import { useToast, ToastRoot } from '../../components/ui/toast'
 import { useAppData } from '../../hooks/use-app-data'
 import { formatReportMonth } from '../../lib/utils'
 import { openReportPdfPreview } from '../../lib/pdf-preview'
-import { EventName, Report } from '../../types/models'
+import { EventName, Report, SkillStatus } from '../../types/models'
 
 const EVENTS: EventName[] = ['Vault', 'Bars', 'Beam', 'Floor', 'Strength/Flexibility', 'Coachability']
 const FOCUS_AREA_DISABLED_EVENTS: EventName[] = ['Strength/Flexibility', 'Coachability']
+const COACHABILITY_FIELDS = ['Respect', 'Work Ethic', 'Training Habits'] as const
+
+const buildCoachabilitySkills = () =>
+  COACHABILITY_FIELDS.map((name) => ({
+    name,
+    status: '3' as SkillStatus,
+    notes: '',
+  }))
+
+const normalizeCoachabilityStatus = (status?: SkillStatus) => {
+  if (!status) return '3' as SkillStatus
+  if (status === 'Exceeding Expectations') return '5' as SkillStatus
+  if (status === 'Meeting Expectations') return '4' as SkillStatus
+  if (status === 'Working/Improving') return '3' as SkillStatus
+  if (status === 'Needs Support') return '2' as SkillStatus
+  if (status === 'Not Started') return '1' as SkillStatus
+  if (status === 'Working') return '3' as SkillStatus
+  if (status === 'Consistent') return '4' as SkillStatus
+  if (status === 'Competition Ready') return '5' as SkillStatus
+  return status
+}
+
+const buildEmptyEventReport = (event: EventName, coachName: string): Report['eventReports'][EventName] => ({
+  event,
+  eventNotes: '',
+  focusAreas: [],
+  isComplete: false,
+  lastUpdatedAt: new Date().toISOString(),
+  lastUpdatedBy: coachName,
+  skills: event === 'Coachability' ? buildCoachabilitySkills() : [],
+})
+
+const normalizeReportForCurrentEvents = (report: Report, coachName: string): Report => {
+  const rawEventReports = (report.eventReports ?? {}) as unknown as Record<string, Partial<Report['eventReports'][EventName]>>
+  const nextEventReports = EVENTS.reduce((acc, event) => {
+    const current = rawEventReports[event] ?? (event === 'Coachability' ? rawEventReports.Behavior : undefined)
+    const fallback = buildEmptyEventReport(event, coachName)
+    const currentSkills = Array.isArray(current?.skills) ? current.skills : []
+    const currentFocusAreas = Array.isArray(current?.focusAreas) ? current.focusAreas : []
+    acc[event] = current
+      ? {
+          ...fallback,
+          ...current,
+          event,
+          focusAreas: currentFocusAreas,
+          skills:
+            event === 'Coachability'
+              ? COACHABILITY_FIELDS.map((fieldName) => {
+                  const existing = currentSkills.find((skill) => skill.name === fieldName)
+                  if (!existing) return { name: fieldName, status: '3' as SkillStatus, notes: '' }
+                  return { ...existing, status: normalizeCoachabilityStatus(existing.status) }
+                })
+              : currentSkills,
+        }
+      : fallback
+    return acc
+  }, {} as Report['eventReports'])
+
+  return {
+    ...report,
+    eventReports: nextEventReports,
+    goals: Array.isArray(report.goals) && report.goals.length ? report.goals : [{ id: 'fallback-goal', goal: '', progressNote: '' }],
+    projectedLevel: report.projectedLevel ?? { level: '', notes: '' },
+  }
+}
 
 const hasGoalContent = (report: Report) =>
   Boolean(
@@ -106,7 +171,7 @@ export default function ReviewPage() {
     return data.reports
       .filter((report) => report.month === month)
       .map((report) => ({
-        report,
+        report: normalizeReportForCurrentEvents(report, data.coachName),
         gymnast: data.gymnasts.find((item) => item.id === report.gymnastId),
       }))
       .sort((a, b) => (a.gymnast?.name || '').localeCompare(b.gymnast?.name || ''))
