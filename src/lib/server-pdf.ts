@@ -226,7 +226,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
     .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'} | ${goal.progressNote || 'No progress note'}`)
 
   const goalsRows = [
-    ...(report.projectedLevel?.level ? [`Projected Level: ${report.projectedLevel.level}`] : []),
+    ...(report.projectedLevel?.level ? [`Projected Level*: ${report.projectedLevel.level}`] : []),
     ...(report.projectedLevel?.notes?.trim() ? [`Projected Level Notes: ${report.projectedLevel.notes.trim()}`] : []),
     ...(report.projectedLevel?.scoreOutLevel4 ? ['Scored out of Level 4: Yes'] : []),
     ...(report.projectedLevel?.scoreOutLevel5 ? ['Scored out of Level 5: Yes'] : []),
@@ -289,7 +289,13 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
 
   y = Math.min(leftY, rightY)
 
-  page.drawText(`Do not reply to this email. Contact ${contactEmail} for any questions or concerns.`, { x: 30, y: 30, size: 9, font, color: rgb(0.4, 0.4, 0.4) })
+  page.drawText("*Projected level is based on the skills and progress demonstrated in this month's report. Placement is subject to change throughout the season based on ongoing evaluations and eathlete readiness.", {
+    x: 30,
+    y: 30,
+    size: 9,
+    font,
+    color: rgb(0.4, 0.4, 0.4),
+  })
 
   return await pdf.save()
 }

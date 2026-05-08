@@ -43,19 +43,19 @@ export async function POST(_request: Request, context: { params: Promise<{ repor
 
     const subject = `NFGC Progress Report - ${gymnast.name} - ${monthLabel}`
     const text = [
-      `Hello ${gymnast.name} family,`,
+      'Hello NFGC family,',
       '',
       `Your ${monthLabel} progress report is attached as a PDF.`,
       '',
-      `If you have questions, reply to ${data.contactEmail}.`,
+      'If you have questions, please reach out to team@nfgymcheer.com.',
       '',
       '- NFGC Coaching Staff',
     ].join('\n')
 
     const html = [
-      `<p>Hello ${gymnast.name} family,</p>`,
+      '<p>Hello NFGC family,</p>',
       `<p>Your <strong>${monthLabel}</strong> progress report is attached as a PDF.</p>`,
-      `<p>If you have questions, reply to ${data.contactEmail}.</p>`,
+      '<p>If you have questions, please reach out to team@nfgymcheer.com.</p>',
       `<p>- NFGC Coaching Staff</p>`,
     ].join('')
 
