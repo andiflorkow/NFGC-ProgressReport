@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '../../components/ui/badge'
 import { useToast, ToastRoot } from '../../components/ui/toast'
 import { useAppData } from '../../hooks/use-app-data'
-import { Gymnast, GymStatus } from '../../types/models'
+import { AppData, Gymnast, GymStatus } from '../../types/models'
 import { formatReportMonth } from '../../lib/utils'
 
 const uid = () => Math.random().toString(36).slice(2, 11)
@@ -96,6 +96,17 @@ export default function GymnastsPage() {
     return allEventsComplete ? 'Complete' : 'Incomplete'
   }, [quickViewLatestReport])
 
+  const saveWithLatestData = async (updater: (current: AppData) => AppData) => {
+    const response = await fetch('/api/data', { cache: 'no-store' })
+    if (!response.ok) {
+      throw new Error('Failed to load latest data before saving')
+    }
+
+    const latestData = (await response.json()) as AppData
+    const nextData = updater(latestData)
+    await save(nextData)
+  }
+
   if (loading || !data) return <p>Loading...</p>
 
   const addGymnast = async () => {
@@ -114,7 +125,10 @@ export default function GymnastsPage() {
       lastUpdatedBy: data.coachName,
     }
 
-    await save({ ...data, gymnasts: [gymnast, ...data.gymnasts] })
+    await saveWithLatestData((current) => ({
+      ...current,
+      gymnasts: [gymnast, ...current.gymnasts],
+    }))
     setModalOpen(false)
     setName('')
     setGymLevel(GYM_LEVEL_OPTIONS[0])
@@ -129,12 +143,11 @@ export default function GymnastsPage() {
 
   const deleteGymnast = async () => {
     if (!quickViewGymnast) return
-    const next = {
-      ...data,
-      gymnasts: data.gymnasts.filter((item) => item.id !== quickViewGymnast.id),
-      reports: data.reports.filter((report) => report.gymnastId !== quickViewGymnast.id),
-    }
-    await save(next)
+    await saveWithLatestData((current) => ({
+      ...current,
+      gymnasts: current.gymnasts.filter((item) => item.id !== quickViewGymnast.id),
+      reports: current.reports.filter((report) => report.gymnastId !== quickViewGymnast.id),
+    }))
     setDeleteConfirmOpen(false)
     setQuickViewOpen(false)
     setQuickViewGymnastId('')
