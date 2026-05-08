@@ -70,6 +70,13 @@ const buildEmptyEventReport = (event: EventName, coachName: string): Report['eve
   skills: event === 'Coachability' ? buildCoachabilitySkills() : event === 'Strength/Flexibility' ? buildStrengthFlexibilitySkills() : [],
 })
 
+const buildEmptyProjectedLevel = (level = '') => ({
+  level,
+  notes: '',
+  scoreOutLevel4: false,
+  scoreOutLevel5: false,
+})
+
 const normalizeReportForCurrentEvents = (report: Report, coachName: string): Report => {
   const rawEventReports = (report.eventReports ?? {}) as unknown as Record<string, Partial<Report['eventReports'][EventName]>>
   const nextEventReports = EVENTS.reduce((acc, event) => {
@@ -112,7 +119,10 @@ const normalizeReportForCurrentEvents = (report: Report, coachName: string): Rep
     ...report,
     eventReports: nextEventReports,
     goals: Array.isArray(report.goals) && report.goals.length ? report.goals : [{ id: 'fallback-goal', goal: '', progressNote: '' }],
-    projectedLevel: report.projectedLevel ?? { level: '', notes: '' },
+    projectedLevel: {
+      ...buildEmptyProjectedLevel(),
+      ...report.projectedLevel,
+    },
   }
 }
 
@@ -120,6 +130,8 @@ const hasGoalContent = (report: Report) =>
   Boolean(
     report.projectedLevel?.level?.trim() ||
       report.projectedLevel?.notes?.trim() ||
+      report.projectedLevel?.scoreOutLevel4 ||
+      report.projectedLevel?.scoreOutLevel5 ||
       report.goals.some((goal) => goal.goal.trim() || goal.progressNote?.trim()),
   )
 
@@ -172,6 +184,8 @@ const getQuickSections = (report: Report) => [
     lines: [
       ...(report.projectedLevel?.level ? [`Projected Level: ${report.projectedLevel.level}`] : []),
       ...(report.projectedLevel?.notes?.trim() ? [`Projected Level Notes: ${report.projectedLevel.notes.trim()}`] : []),
+      ...(report.projectedLevel?.scoreOutLevel4 ? ['Scored out of Level 4: Yes'] : []),
+      ...(report.projectedLevel?.scoreOutLevel5 ? ['Scored out of Level 5: Yes'] : []),
       ...report.goals
         .filter((goal) => goal.goal.trim() || goal.progressNote?.trim())
         .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'}${goal.progressNote?.trim() ? ` | ${goal.progressNote.trim()}` : ''}`),

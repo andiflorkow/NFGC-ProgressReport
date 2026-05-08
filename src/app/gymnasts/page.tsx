@@ -40,9 +40,10 @@ export default function GymnastsPage() {
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'All' | GymStatus>('All')
   const [level, setLevel] = useState('All')
-  const [selectedGymnastId, setSelectedGymnastId] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [quickViewOpen, setQuickViewOpen] = useState(false)
+  const [quickViewGymnastId, setQuickViewGymnastId] = useState('')
 
   const [name, setName] = useState('')
   const [gymLevel, setGymLevel] = useState<string>(GYM_LEVEL_OPTIONS[0])
@@ -73,25 +74,25 @@ export default function GymnastsPage() {
     [data, search, status, level],
   )
 
-  const selected = useMemo(() => {
+  const quickViewGymnast = useMemo(() => {
     if (!data) return undefined
-    return data.gymnasts.find((item) => item.id === (selectedGymnastId || filtered[0]?.id))
-  }, [data, selectedGymnastId, filtered])
+    return data.gymnasts.find((item) => item.id === quickViewGymnastId)
+  }, [data, quickViewGymnastId])
 
-  const selectedLatestReport = useMemo(() => {
-    if (!data || !selected) return undefined
+  const quickViewLatestReport = useMemo(() => {
+    if (!data || !quickViewGymnast) return undefined
     return data.reports
-      .filter((report) => report.gymnastId === selected.id)
+      .filter((report) => report.gymnastId === quickViewGymnast.id)
       .sort((a, b) => b.month.localeCompare(a.month))[0]
-  }, [data, selected])
+  }, [data, quickViewGymnast])
 
-  const selectedReportCompletion = useMemo(() => {
-    if (!selectedLatestReport) return 'No report yet'
-    const allEventsComplete = Object.values(selectedLatestReport.eventReports).every(
-      (event) => event.isComplete ?? (selectedLatestReport.readiness === 'ready'),
+  const quickViewReportCompletion = useMemo(() => {
+    if (!quickViewLatestReport) return 'No report yet'
+    const allEventsComplete = (Object.values(quickViewLatestReport.eventReports) as Array<{ isComplete?: boolean }>).every(
+      (event) => event.isComplete ?? quickViewLatestReport.readiness === 'ready',
     )
     return allEventsComplete ? 'Complete' : 'Incomplete'
-  }, [selectedLatestReport])
+  }, [quickViewLatestReport])
 
   if (loading || !data) return <p>Loading...</p>
 
@@ -112,7 +113,6 @@ export default function GymnastsPage() {
     }
 
     await save({ ...data, gymnasts: [gymnast, ...data.gymnasts] })
-    setSelectedGymnastId(gymnast.id)
     setModalOpen(false)
     setName('')
     setGymLevel(GYM_LEVEL_OPTIONS[0])
@@ -126,15 +126,16 @@ export default function GymnastsPage() {
   }
 
   const deleteGymnast = async () => {
-    if (!selected) return
+    if (!quickViewGymnast) return
     const next = {
       ...data,
-      gymnasts: data.gymnasts.filter((item) => item.id !== selected.id),
-      reports: data.reports.filter((report) => report.gymnastId !== selected.id),
+      gymnasts: data.gymnasts.filter((item) => item.id !== quickViewGymnast.id),
+      reports: data.reports.filter((report) => report.gymnastId !== quickViewGymnast.id),
     }
     await save(next)
     setDeleteConfirmOpen(false)
-    setSelectedGymnastId('')
+    setQuickViewOpen(false)
+    setQuickViewGymnastId('')
     toast('Gymnast deleted')
   }
 
@@ -201,97 +202,93 @@ export default function GymnastsPage() {
         </Dialog>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Gymnast List</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-2 md:grid-cols-[1.4fr_1fr_1fr]">
-              <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search gymnast" />
-              <Select value={status} onValueChange={(value) => setStatus(value as 'All' | GymStatus)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All">All Statuses</SelectItem>
-                  <SelectItem value="Active">Active</SelectItem>
-                  <SelectItem value="Inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={level} onValueChange={setLevel}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="All">All Levels</SelectItem>
-                  {levels.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Gymnast List</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-2 md:grid-cols-[1.4fr_1fr_1fr]">
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search gymnast" />
+            <Select value={status} onValueChange={(value) => setStatus(value as 'All' | GymStatus)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Statuses</SelectItem>
+                <SelectItem value="Active">Active</SelectItem>
+                <SelectItem value="Inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={level} onValueChange={setLevel}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Levels</SelectItem>
+                {levels.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
 
-            <div className="space-y-2">
-              {filtered.map((item) => (
-                <div
-                  key={item.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => setSelectedGymnastId(item.id)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      setSelectedGymnastId(item.id)
-                    }
-                  }}
-                  className="w-full rounded-xl border border-border bg-bg p-3 text-left hover:bg-black/5"
-                >
-                  <div className="flex items-center justify-between">
-                    <Link
-                      href={`/gymnasts/${item.id}`}
-                      className="font-medium hover:underline"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        setSelectedGymnastId(item.id)
-                      }}
-                    >
-                      {item.name}
-                    </Link>
-                    <Badge variant={item.status === 'Active' ? 'success' : 'warning'}>{item.status}</Badge>
-                  </div>
+          <div className="space-y-2">
+            {filtered.map((item) => (
+              <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-border bg-bg p-3 md:flex-row md:items-center md:justify-between">
+                <div className="space-y-1">
+                  <Link href={`/gymnasts/${item.id}`} className="font-medium hover:underline">
+                    {item.name}
+                  </Link>
                   <p className="text-sm text-muted">Level {item.level}</p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant={item.status === 'Active' ? 'success' : 'warning'}>{item.status}</Badge>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setQuickViewGymnastId(item.id)
+                      setQuickViewOpen(true)
+                    }}
+                  >
+                    Quick View
+                  </Button>
+                  <Link href={`/reports?gymnastId=${item.id}`}>
+                    <Button size="sm" variant="secondary">Build Report</Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {!selected ? <p className="text-sm text-muted">Select a gymnast to view details.</p> : (
-              <>
-                <div className="rounded-xl border border-border bg-bg p-3">
-                  <p className="font-medium">{selected.name}</p>
-                  <p className="text-sm text-muted">Level {selected.level} • {selected.status}</p>
-                  <p className="mt-1 text-sm text-muted">
-                    Latest report: {selectedLatestReport ? `${formatReportMonth(selectedLatestReport.month)} - ${selectedReportCompletion}` : selectedReportCompletion}
-                  </p>
-                  <p className="mt-1 text-sm text-muted">Last updated by {selected.lastUpdatedBy} on {new Date(selected.lastUpdatedAt).toLocaleDateString()}</p>
+      <Dialog open={quickViewOpen} onOpenChange={setQuickViewOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Quick View</DialogTitle>
+          </DialogHeader>
+          {!quickViewGymnast ? (
+            <p className="text-sm text-muted">Select a gymnast to view details.</p>
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-border bg-bg p-3">
+                <p className="font-medium">{quickViewGymnast.name}</p>
+                <p className="text-sm text-muted">Level {quickViewGymnast.level} • {quickViewGymnast.status}</p>
+                <p className="mt-1 text-sm text-muted">
+                  Latest report: {quickViewLatestReport ? `${formatReportMonth(quickViewLatestReport.month)} - ${quickViewReportCompletion}` : quickViewReportCompletion}
+                </p>
+                <p className="mt-1 text-sm text-muted">Last updated by {quickViewGymnast.lastUpdatedBy} on {new Date(quickViewGymnast.lastUpdatedAt).toLocaleDateString()}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-bg p-3">
+                <p className="mb-1 text-sm font-medium">Guardian Emails</p>
+                <div className="flex flex-wrap gap-1">
+                  {quickViewGymnast.guardians.map((guardian) => <Badge key={guardian.id} variant="secondary">{guardian.email}</Badge>)}
                 </div>
-                <div className="rounded-xl border border-border bg-bg p-3">
-                  <p className="mb-1 text-sm font-medium">Guardian Emails</p>
-                  <div className="flex flex-wrap gap-1">
-                    {selected.guardians.map((guardian) => <Badge key={guardian.id} variant="secondary">{guardian.email}</Badge>)}
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Link href={`/gymnasts/${selected.id}`} className="flex-1"><Button className="w-full">Open Profile</Button></Link>
-                  <Link href={`/reports?gymnastId=${selected.id}`} className="flex-1"><Button variant="secondary" className="w-full">Build Report</Button></Link>
-                </div>
-                <Button variant="destructive" className="w-full" onClick={() => setDeleteConfirmOpen(true)}>Delete Gymnast</Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+              </div>
+              <div className="flex gap-2">
+                <Link href={`/gymnasts/${quickViewGymnast.id}`} className="flex-1"><Button className="w-full">Open Profile</Button></Link>
+                <Link href={`/reports?gymnastId=${quickViewGymnast.id}`} className="flex-1"><Button variant="secondary" className="w-full">Build Report</Button></Link>
+              </div>
+              <Button variant="destructive" className="w-full" onClick={() => setDeleteConfirmOpen(true)}>Delete Gymnast</Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent>

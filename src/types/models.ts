@@ -60,6 +60,13 @@ export interface GoalItem {
   progressNote?: string
 }
 
+export interface ProjectedLevel {
+  level?: string
+  notes?: string
+  scoreOutLevel4?: boolean
+  scoreOutLevel5?: boolean
+}
+
 export interface FocusAreaItem {
   id: string
   title: string
@@ -95,10 +102,7 @@ export interface Report {
   }
   goals: GoalItem[]
   focusAreas?: FocusAreaItem[]
-  projectedLevel?: {
-    level?: string
-    notes?: string
-  }
+  projectedLevel?: ProjectedLevel
   attendance?: string
   injuries?: string
   reminders?: string

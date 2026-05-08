@@ -228,6 +228,8 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const goalsRows = [
     ...(report.projectedLevel?.level ? [`Projected Level: ${report.projectedLevel.level}`] : []),
     ...(report.projectedLevel?.notes?.trim() ? [`Projected Level Notes: ${report.projectedLevel.notes.trim()}`] : []),
+    ...(report.projectedLevel?.scoreOutLevel4 ? ['Scored out of Level 4: Yes'] : []),
+    ...(report.projectedLevel?.scoreOutLevel5 ? ['Scored out of Level 5: Yes'] : []),
     ...(report.projectedLevel?.notes?.trim() && goalDetailRows.length ? [spacerToken] : []),
     ...goalDetailRows.flatMap((row, index) => (index === 0 && goalDetailRows.length > 1 ? [row, spacerToken] : [row])),
   ]

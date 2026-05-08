@@ -150,6 +150,13 @@ const emptyEventValues = EVENTS.reduce((acc, event) => {
 
 const uid = () => Math.random().toString(36).slice(2, 11)
 
+const buildEmptyProjectedLevel = (level = '') => ({
+  level,
+  notes: '',
+  scoreOutLevel4: false,
+  scoreOutLevel5: false,
+})
+
 const buildCoachabilitySkills = () =>
   COACHABILITY_FIELDS.map((name) => ({
     name,
@@ -243,7 +250,10 @@ const normalizeReportForCurrentEvents = (report: Report, coachName: string, gymn
     ...report,
     eventReports: nextEventReports,
     goals: report.goals?.length ? report.goals : [{ id: uid(), goal: '', progressNote: '' }],
-    projectedLevel: report.projectedLevel ?? { level: gymnastLevel, notes: '' },
+    projectedLevel: {
+      ...buildEmptyProjectedLevel(gymnastLevel),
+      ...report.projectedLevel,
+    },
   }
 }
 
@@ -251,6 +261,8 @@ const hasGoalContent = (report: Report) =>
   Boolean(
     report.projectedLevel?.level?.trim() ||
       report.projectedLevel?.notes?.trim() ||
+      report.projectedLevel?.scoreOutLevel4 ||
+      report.projectedLevel?.scoreOutLevel5 ||
       (report.goals ?? []).some((goal) => goal.goal.trim() || goal.progressNote?.trim()),
   )
 
@@ -329,7 +341,7 @@ export default function ReportsPage() {
       eventReports: baseEventReports,
       behavior: { effort: 3, coachability: 3, focus: 3, respect: 3, comments: '' },
       goals: [{ id: uid(), goal: '', progressNote: '' }],
-      projectedLevel: { level: selectedGymnast?.level || '', notes: '' },
+      projectedLevel: buildEmptyProjectedLevel(selectedGymnast?.level || ''),
       attendance: '',
       injuries: '',
       reminders: '',
@@ -539,6 +551,8 @@ export default function ReportsPage() {
           lines: [
             ...(report.projectedLevel?.level ? [`Projected Level: ${report.projectedLevel.level}`] : []),
             ...(report.projectedLevel?.notes?.trim() ? [`Projected Level Notes: ${report.projectedLevel.notes.trim()}`] : []),
+            ...(report.projectedLevel?.scoreOutLevel4 ? ['Scored out of Level 4: Yes'] : []),
+            ...(report.projectedLevel?.scoreOutLevel5 ? ['Scored out of Level 5: Yes'] : []),
             ...report.goals
               .filter((goal) => goal.goal.trim() || goal.progressNote?.trim())
               .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'}${goal.progressNote?.trim() ? ` | ${goal.progressNote.trim()}` : ''}`),
@@ -981,6 +995,44 @@ export default function ReportsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <label className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={Boolean(report.projectedLevel?.scoreOutLevel4)}
+                        onChange={(event) =>
+                          updateReport((current) => ({
+                            ...current,
+                            projectedLevel: {
+                              ...buildEmptyProjectedLevel(current.projectedLevel?.level || ''),
+                              ...current.projectedLevel,
+                              scoreOutLevel4: event.target.checked,
+                            },
+                          }))
+                        }
+                      />
+                      <span>Scored out of Level 4</span>
+                    </label>
+                    <label className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={Boolean(report.projectedLevel?.scoreOutLevel5)}
+                        onChange={(event) =>
+                          updateReport((current) => ({
+                            ...current,
+                            projectedLevel: {
+                              ...buildEmptyProjectedLevel(current.projectedLevel?.level || ''),
+                              ...current.projectedLevel,
+                              scoreOutLevel5: event.target.checked,
+                            },
+                          }))
+                        }
+                      />
+                      <span>Scored out of Level 5</span>
+                    </label>
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm text-muted">Notes</p>
