@@ -290,7 +290,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   y = Math.min(leftY, rightY)
 
   drawWrapped(
-    "*Projected level is based on the skills and progress demonstrated in this month's report. Placement is subject to change throughout the season based on ongoing evaluations and eathlete readiness.",
+    "*Projected level is based on the skills and progress demonstrated in this month's report. Placement is subject to change throughout the season based on ongoing evaluations and athlete readiness.",
     30,
     34,
     width - 60,
