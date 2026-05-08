@@ -206,7 +206,7 @@ const getQuickSections = (report: Report) => [
 ]
 
 export default function ReviewPage() {
-  const { data, save, loading, reload } = useAppData()
+  const { data, saveWithPatch, loading, reload } = useAppData()
   const { open, setOpen, message, toast } = useToast()
   const [month, setMonth] = useState(new Date().toISOString().slice(0, 7))
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false)
@@ -230,13 +230,11 @@ export default function ReviewPage() {
   const markReady = async (reportId: string) => {
     const report = data.reports.find((item) => item.id === reportId)
     if (!report) return
-    const nextData = {
-      ...data,
-      reports: data.reports.map((item) => (item.id === reportId ? { ...item, readiness: 'ready' as const } : item)),
-    }
-
     try {
-      await save(nextData)
+      await saveWithPatch((current) => ({
+        ...current,
+        reports: current.reports.map((item) => (item.id === reportId ? { ...item, readiness: 'ready' as const } : item)),
+      }))
       await reload()
       toast('Marked ready to send')
     } catch {

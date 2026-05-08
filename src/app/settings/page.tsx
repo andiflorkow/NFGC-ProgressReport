@@ -10,7 +10,7 @@ import { applyTheme, readThemeMode, THEME_MODE_KEY, ThemeMode } from '../../lib/
 
 export default function SettingsPage() {
   const { open, setOpen, message, toast } = useToast()
-  const { data, save, loading } = useAppData()
+  const { data, saveWithPatch, loading } = useAppData()
   const [themeMode, setThemeMode] = useState<ThemeMode>('auto')
 
   useEffect(() => {
@@ -32,14 +32,14 @@ export default function SettingsPage() {
             <p className="mb-1 text-sm text-muted">Coach display name</p>
             <Input
               value={data.coachName}
-              onChange={(event) => save({ ...data, coachName: event.target.value }).catch(() => toast('Could not save coach name'))}
+              onChange={(event) => saveWithPatch((current) => ({ ...current, coachName: event.target.value })).catch(() => toast('Could not save coach name'))}
             />
           </div>
           <div>
             <p className="mb-1 text-sm text-muted">Family contact email</p>
             <Input
               value={data.contactEmail}
-              onChange={(event) => save({ ...data, contactEmail: event.target.value }).catch(() => toast('Could not save contact email'))}
+              onChange={(event) => saveWithPatch((current) => ({ ...current, contactEmail: event.target.value })).catch(() => toast('Could not save contact email'))}
             />
           </div>
           <div className="flex items-center justify-between rounded-xl border border-border bg-bg p-3">

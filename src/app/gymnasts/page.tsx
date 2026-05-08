@@ -38,7 +38,7 @@ const GYM_LEVEL_OPTIONS = [
 export default function GymnastsPage() {
   const { open, setOpen, message, toast } = useToast()
   const router = useRouter()
-  const { data, save, loading } = useAppData()
+  const { data, saveWithPatch, loading, reload } = useAppData()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'All' | GymStatus>('All')
   const [level, setLevel] = useState('All')
@@ -96,17 +96,6 @@ export default function GymnastsPage() {
     return allEventsComplete ? 'Complete' : 'Incomplete'
   }, [quickViewLatestReport])
 
-  const saveWithLatestData = async (updater: (current: AppData) => AppData) => {
-    const response = await fetch('/api/data', { cache: 'no-store' })
-    if (!response.ok) {
-      throw new Error('Failed to load latest data before saving')
-    }
-
-    const latestData = (await response.json()) as AppData
-    const nextData = updater(latestData)
-    await save(nextData)
-  }
-
   if (loading || !data) return <p>Loading...</p>
 
   const addGymnast = async () => {
@@ -125,25 +114,36 @@ export default function GymnastsPage() {
       lastUpdatedBy: data.coachName,
     }
 
-    await saveWithLatestData((current) => ({
-      ...current,
-      gymnasts: [gymnast, ...current.gymnasts],
-    }))
-    setModalOpen(false)
-    setName('')
-    setGymLevel(GYM_LEVEL_OPTIONS[0])
-    setGymStatus('Active')
-    setGuardianEmail('')
-    setGuardianName('')
-    setGuardianPhone('')
-    setNotes('')
-    setShowMore(false)
-    toast('Gymnast added')
+    try {
+      const response = await fetch('/api/gymnasts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gymnast }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to add gymnast')
+      }
+
+      await reload()
+      setModalOpen(false)
+      setName('')
+      setGymLevel(GYM_LEVEL_OPTIONS[0])
+      setGymStatus('Active')
+      setGuardianEmail('')
+      setGuardianName('')
+      setGuardianPhone('')
+      setNotes('')
+      setShowMore(false)
+      toast('Gymnast added')
+    } catch {
+      toast('Failed to add gymnast. Please try again.')
+    }
   }
 
   const deleteGymnast = async () => {
     if (!quickViewGymnast) return
-    await saveWithLatestData((current) => ({
+    await saveWithPatch((current) => ({
       ...current,
       gymnasts: current.gymnasts.filter((item) => item.id !== quickViewGymnast.id),
       reports: current.reports.filter((report) => report.gymnastId !== quickViewGymnast.id),

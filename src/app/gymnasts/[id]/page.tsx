@@ -20,7 +20,7 @@ const uid = () => Math.random().toString(36).slice(2, 11)
 export default function GymnastProfilePage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
-  const { data, save, loading, reload } = useAppData()
+  const { data, saveWithPatch, loading, reload } = useAppData()
   const { open, setOpen, message, toast } = useToast()
   const [editOverviewOpen, setEditOverviewOpen] = useState(false)
   const [checklistMonth, setChecklistMonth] = useState('')
@@ -40,15 +40,14 @@ export default function GymnastProfilePage() {
     const name = String(formData.get('name') || gymnast.name)
     const level = String(formData.get('level') || gymnast.level)
     const status = String(formData.get('status') || gymnast.status) as 'Active' | 'Inactive'
-    const next = {
-      ...data,
-      gymnasts: data.gymnasts.map((item) =>
+    await saveWithPatch((current) => ({
+      ...current,
+      gymnasts: current.gymnasts.map((item) =>
         item.id === gymnast.id
-          ? { ...item, name, level, status, lastUpdatedAt: new Date().toISOString(), lastUpdatedBy: data.coachName }
+          ? { ...item, name, level, status, lastUpdatedAt: new Date().toISOString(), lastUpdatedBy: current.coachName }
           : item,
       ),
-    }
-    await save(next)
+    }))
     setEditOverviewOpen(false)
     toast('Overview updated')
   }
@@ -56,9 +55,9 @@ export default function GymnastProfilePage() {
   const addGuardian = async (formData: FormData) => {
     const email = String(formData.get('email') || '').trim()
     if (!email) return toast('Guardian email is required')
-    const next = {
-      ...data,
-      gymnasts: data.gymnasts.map((item) =>
+    await saveWithPatch((current) => ({
+      ...current,
+      gymnasts: current.gymnasts.map((item) =>
         item.id === gymnast.id
           ? {
               ...item,
@@ -67,30 +66,28 @@ export default function GymnastProfilePage() {
                 { id: uid(), email, name: String(formData.get('name') || ''), phone: String(formData.get('phone') || '') },
               ],
               lastUpdatedAt: new Date().toISOString(),
-              lastUpdatedBy: data.coachName,
+              lastUpdatedBy: current.coachName,
             }
           : item,
       ),
-    }
-    await save(next)
+    }))
     toast('Guardian added')
   }
 
   const removeGuardian = async (guardianId: string) => {
-    const next = {
-      ...data,
-      gymnasts: data.gymnasts.map((item) =>
+    await saveWithPatch((current) => ({
+      ...current,
+      gymnasts: current.gymnasts.map((item) =>
         item.id === gymnast.id
           ? {
               ...item,
               guardians: item.guardians.filter((guardian) => guardian.id !== guardianId),
               lastUpdatedAt: new Date().toISOString(),
-              lastUpdatedBy: data.coachName,
+              lastUpdatedBy: current.coachName,
             }
           : item,
       ),
-    }
-    await save(next)
+    }))
     toast('Guardian removed')
   }
 

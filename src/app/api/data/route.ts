@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readDb, writeDb } from '../../../lib/server-db'
+import { readDb, withDbWriteLock, writeDb } from '../../../lib/server-db'
 import { AppData } from '../../../types/models'
 
 export async function GET() {
@@ -10,7 +10,9 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const payload = (await request.json()) as AppData
-    await writeDb(payload)
+    await withDbWriteLock(async () => {
+      await writeDb(payload)
+    })
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error('Failed to save data', error)

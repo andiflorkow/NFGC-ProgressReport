@@ -46,5 +46,17 @@ export function useAppData() {
     }
   }, [])
 
-  return { data, setData, save, loading, error, reload: load }
+  // Safely read-modify-write: always fetches the latest server state before
+  // applying the patch so concurrent saves from other users are not overwritten.
+  const saveWithPatch = useCallback(async (patcher: (current: AppData) => AppData) => {
+    const response = await fetch('/api/data', { cache: 'no-store' })
+    if (!response.ok) throw new Error('Failed to load latest data before saving')
+    const sessionCoach = typeof window !== 'undefined' ? localStorage.getItem(COACH_SESSION_KEY)?.trim() : ''
+    const latest = (await response.json()) as AppData
+    const base: AppData = sessionCoach ? { ...latest, coachName: sessionCoach } : latest
+    const next = patcher(base)
+    await save(next)
+  }, [save])
+
+  return { data, setData, save, saveWithPatch, loading, error, reload: load }
 }

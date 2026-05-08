@@ -291,7 +291,7 @@ const hasEventDisplayContent = (eventReport: Report['eventReports'][EventName], 
 }
 
 export default function ReportsPage() {
-  const { data, save, loading, reload } = useAppData()
+  const { data, saveWithPatch, loading, reload } = useAppData()
   const { open, setOpen, message, toast } = useToast()
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
@@ -357,14 +357,13 @@ export default function ReportsPage() {
   useEffect(() => {
     if (!report || !data) return
     const timer = setTimeout(async () => {
-      const nextData = {
-        ...data,
-        reports: data.reports.some((item) => item.id === report.id)
-          ? data.reports.map((item) => (item.id === report.id ? report : item))
-          : [report, ...data.reports],
-      }
       try {
-        await save(nextData)
+        await saveWithPatch((current) => ({
+          ...current,
+          reports: current.reports.some((item) => item.id === report.id)
+            ? current.reports.map((item) => (item.id === report.id ? report : item))
+            : [report, ...current.reports],
+        }))
         setSavedFlag('Saved')
       } catch {
         toast('Autosave failed')
@@ -372,7 +371,7 @@ export default function ReportsPage() {
     }, 600)
 
     return () => clearTimeout(timer)
-  }, [report, data, save, toast])
+  }, [report, data, saveWithPatch, toast])
 
   const updateReport = (updater: (current: Report) => Report) => {
     setReport((current) => {

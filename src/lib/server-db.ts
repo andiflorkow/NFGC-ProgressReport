@@ -13,6 +13,7 @@ const nowIso = () => new Date().toISOString()
 const uid = () => Math.random().toString(36).slice(2, 11)
 
 let sqlClient: ReturnType<typeof neon> | null = null
+let writeLock: Promise<void> = Promise.resolve()
 
 function getSqlClient() {
   if (!DATABASE_URL) {
@@ -24,6 +25,23 @@ function getSqlClient() {
   }
 
   return sqlClient
+}
+
+export async function withDbWriteLock<T>(operation: () => Promise<T>): Promise<T> {
+  const previousLock = writeLock
+  let releaseCurrentLock = () => {}
+
+  writeLock = new Promise<void>((resolve) => {
+    releaseCurrentLock = resolve
+  })
+
+  await previousLock
+
+  try {
+    return await operation()
+  } finally {
+    releaseCurrentLock()
+  }
 }
 
 function createDefaultData(): AppData {
