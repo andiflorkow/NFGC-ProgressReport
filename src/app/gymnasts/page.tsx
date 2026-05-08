@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
@@ -36,6 +37,7 @@ const GYM_LEVEL_OPTIONS = [
 
 export default function GymnastsPage() {
   const { open, setOpen, message, toast } = useToast()
+  const router = useRouter()
   const { data, save, loading } = useAppData()
   const [search, setSearch] = useState('')
   const [status, setStatus] = useState<'All' | GymStatus>('All')
@@ -228,9 +230,21 @@ export default function GymnastsPage() {
 
           <div className="space-y-2">
             {filtered.map((item) => (
-              <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-border bg-bg p-3 md:flex-row md:items-center md:justify-between">
+              <div
+                key={item.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => router.push(`/gymnasts/${item.id}`)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    router.push(`/gymnasts/${item.id}`)
+                  }
+                }}
+                className="flex cursor-pointer flex-col gap-3 rounded-xl border border-border bg-bg p-3 transition hover:bg-black/5 md:flex-row md:items-center md:justify-between"
+              >
                 <div className="space-y-1">
-                  <Link href={`/gymnasts/${item.id}`} className="font-medium hover:underline">
+                  <Link href={`/gymnasts/${item.id}`} className="font-medium hover:underline" onClick={(event) => event.stopPropagation()}>
                     {item.name}
                   </Link>
                   <p className="text-sm text-muted">Level {item.level}</p>
@@ -240,14 +254,15 @@ export default function GymnastsPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => {
+                    onClick={(event) => {
+                      event.stopPropagation()
                       setQuickViewGymnastId(item.id)
                       setQuickViewOpen(true)
                     }}
                   >
                     Quick View
                   </Button>
-                  <Link href={`/reports?gymnastId=${item.id}`}>
+                  <Link href={`/reports?gymnastId=${item.id}`} onClick={(event) => event.stopPropagation()}>
                     <Button size="sm" variant="secondary">Build Report</Button>
                   </Link>
                 </div>
