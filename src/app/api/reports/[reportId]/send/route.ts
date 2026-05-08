@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readDb, saveReportPdf, writeDb } from '../../../../../lib/server-db'
+import { readDb, saveReportPdf, withDbWriteLock, writeDb } from '../../../../../lib/server-db'
 import { buildReportPdf } from '../../../../../lib/server-pdf'
 import { sendReportEmail } from '../../../../../lib/server-mail'
 import { formatReportMonth } from '../../../../../lib/utils'
@@ -72,27 +72,33 @@ export async function POST(_request: Request, context: { params: Promise<{ repor
       return NextResponse.json({ error: 'SMTP did not accept any recipients' }, { status: 502 })
     }
 
-    report.pdfHistory = [
-      {
-        id: pdfId,
-        month,
-        path: storedPath,
-        createdAt: new Date().toISOString(),
-      },
-      ...report.pdfHistory,
-    ]
+    await withDbWriteLock(async () => {
+      const fresh = await readDb()
+      const freshReport = fresh.reports.find((item) => item.id === reportId)
+      if (!freshReport) return
 
-    report.sendHistory = [
-      {
-        id: uid(),
-        sentAt: new Date().toISOString(),
-        status: 'sent',
-        by: data.coachName,
-      },
-      ...report.sendHistory,
-    ]
+      freshReport.pdfHistory = [
+        {
+          id: pdfId,
+          month,
+          path: storedPath,
+          createdAt: new Date().toISOString(),
+        },
+        ...freshReport.pdfHistory,
+      ]
 
-    await writeDb(data)
+      freshReport.sendHistory = [
+        {
+          id: uid(),
+          sentAt: new Date().toISOString(),
+          status: 'sent',
+          by: fresh.coachName,
+        },
+        ...freshReport.sendHistory,
+      ]
+
+      await writeDb(fresh)
+    })
 
     return NextResponse.json({
       ok: true,

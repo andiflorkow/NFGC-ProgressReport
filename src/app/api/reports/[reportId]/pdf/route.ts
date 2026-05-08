@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { readDb, readStoredPdf, saveReportPdf, writeDb } from '../../../../../lib/server-db'
+import { readDb, readStoredPdf, saveReportPdf, withDbWriteLock, writeDb } from '../../../../../lib/server-db'
 import { buildReportPdf } from '../../../../../lib/server-pdf'
 import { formatReportMonth } from '../../../../../lib/utils'
 
@@ -57,17 +57,23 @@ export async function POST(_request: Request, context: { params: Promise<{ repor
       pdfBytes,
     })
 
-    report.pdfHistory = [
-      {
-        id: pdfId,
-        month,
-        path: storedPath,
-        createdAt: new Date().toISOString(),
-      },
-      ...report.pdfHistory,
-    ]
+    await withDbWriteLock(async () => {
+      const fresh = await readDb()
+      const freshReport = fresh.reports.find((item) => item.id === reportId)
+      if (!freshReport) return
 
-    await writeDb(data)
+      freshReport.pdfHistory = [
+        {
+          id: pdfId,
+          month,
+          path: storedPath,
+          createdAt: new Date().toISOString(),
+        },
+        ...freshReport.pdfHistory,
+      ]
+
+      await writeDb(fresh)
+    })
 
     return new NextResponse(Buffer.from(pdfBytes), {
       status: 200,
