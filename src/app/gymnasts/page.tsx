@@ -262,6 +262,17 @@ export default function GymnastsPage() {
                   >
                     Quick View
                   </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      setQuickViewGymnastId(item.id)
+                      setDeleteConfirmOpen(true)
+                    }}
+                  >
+                    Delete
+                  </Button>
                   <Link href={`/reports?gymnastId=${item.id}`} onClick={(event) => event.stopPropagation()}>
                     <Button size="sm" variant="secondary">Build Report</Button>
                   </Link>
