@@ -940,7 +940,6 @@ export default function ReportsPage() {
                   {currentEventIsComplete ? 'Mark Incomplete' : 'Mark Complete'}
                 </Button>
                 <Button
-                  variant="secondary"
                   onClick={() => {
                     const currentIndex = EVENTS.indexOf(activeEvent)
                     const hasNextEvent = currentIndex >= 0 && currentIndex < EVENTS.length - 1
@@ -951,9 +950,8 @@ export default function ReportsPage() {
                     setStep(3)
                   }}
                 >
-                  Save & Continue
+                  Next Step
                 </Button>
-                <Button onClick={() => setStep(3)}>Next Step</Button>
               </div>
             </div>
           </CardContent>
