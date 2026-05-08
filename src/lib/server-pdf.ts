@@ -289,13 +289,15 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
 
   y = Math.min(leftY, rightY)
 
-  page.drawText("*Projected level is based on the skills and progress demonstrated in this month's report. Placement is subject to change throughout the season based on ongoing evaluations and eathlete readiness.", {
-    x: 30,
-    y: 30,
-    size: 9,
+  drawWrapped(
+    "*Projected level is based on the skills and progress demonstrated in this month's report. Placement is subject to change throughout the season based on ongoing evaluations and eathlete readiness.",
+    30,
+    34,
+    width - 60,
+    9,
+    11,
     font,
-    color: rgb(0.4, 0.4, 0.4),
-  })
+  )
 
   return await pdf.save()
 }
