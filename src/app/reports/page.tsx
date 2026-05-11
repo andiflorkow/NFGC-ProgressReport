@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../../components/ui/accordion'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
@@ -293,6 +293,7 @@ const hasEventDisplayContent = (eventReport: Report['eventReports'][EventName], 
 export default function ReportsPage() {
   const { data, saveWithPatch, loading, reload } = useAppData()
   const { open, setOpen, message, toast } = useToast()
+  const initializedSelectionKeyRef = useRef('')
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [gymnastId, setGymnastId] = useState('')
@@ -320,6 +321,10 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (!data || !gymnastId) return
+    const selectionKey = `${gymnastId}:${month}`
+    if (initializedSelectionKeyRef.current === selectionKey) return
+    initializedSelectionKeyRef.current = selectionKey
+
     const selectedGymnast = data.gymnasts.find((item) => item.id === gymnastId)
     const existing = data.reports.find((item) => item.gymnastId === gymnastId && item.month === month)
     if (existing) {
@@ -355,7 +360,13 @@ export default function ReportsPage() {
   }, [data, gymnastId, month])
 
   useEffect(() => {
-    if (!report || !data) return
+    if (gymnastId) return
+    initializedSelectionKeyRef.current = ''
+    setReport(null)
+  }, [gymnastId])
+
+  useEffect(() => {
+    if (!report) return
     const timer = setTimeout(async () => {
       try {
         await saveWithPatch((current) => ({
@@ -371,7 +382,7 @@ export default function ReportsPage() {
     }, 600)
 
     return () => clearTimeout(timer)
-  }, [report, data, saveWithPatch, toast])
+  }, [report, saveWithPatch, toast])
 
   const updateReport = (updater: (current: Report) => Report) => {
     setReport((current) => {
