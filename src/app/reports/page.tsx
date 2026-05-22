@@ -561,8 +561,8 @@ export default function ReportsPage() {
           lines: [
             ...(report.projectedLevel?.level ? [`Projected Level: ${report.projectedLevel.level}`] : []),
             ...(report.projectedLevel?.notes?.trim() ? [`Projected Level Notes: ${report.projectedLevel.notes.trim()}`] : []),
-            ...(report.projectedLevel?.scoreOutLevel4 ? ['Scored out of Level 4: Yes'] : []),
-            ...(report.projectedLevel?.scoreOutLevel5 ? ['Scored out of Level 5: Yes'] : []),
+            `Scored out of Level 4: ${report.projectedLevel?.scoreOutLevel4 ? 'Yes' : 'No'}`,
+            `Scored out of Level 5: ${report.projectedLevel?.scoreOutLevel5 ? 'Yes' : 'No'}`,
             ...report.goals
               .filter((goal) => goal.goal.trim() || goal.progressNote?.trim())
               .map((goal, index) => `Goal ${index + 1}: ${goal.goal || 'N/A'}${goal.progressNote?.trim() ? ` | ${goal.progressNote.trim()}` : ''}`),
