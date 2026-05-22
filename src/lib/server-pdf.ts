@@ -204,7 +204,7 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   y -= 20
   drawCentered('Progress Report', y, 12, font, rgb(0.25, 0.25, 0.25))
   y -= 16
-  drawCentered(`Gymnast: ${gymnast.name} | Level ${gymnast.level} | ${formatReportMonth(report.month)}`, y, 10, font)
+  drawCentered(`Gymnast: ${gymnast.name} | ${gymnast.level} | ${formatReportMonth(report.month)}`, y, 10, font)
   y -= 24
 
   const rawEventReports = report.eventReports as unknown as Record<string, Report['eventReports'][keyof Report['eventReports']]>
