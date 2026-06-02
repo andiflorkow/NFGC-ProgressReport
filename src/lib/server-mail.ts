@@ -7,7 +7,6 @@ type MailConfig = {
   user: string
   pass: string
   from: string
-  replyTo?: string
 }
 
 function getEnv(name: string): string {
@@ -24,7 +23,6 @@ function getMailConfig(): MailConfig {
   const user = getEnv('SMTP_USER')
   const pass = getEnv('SMTP_PASS')
   const from = process.env.SMTP_FROM?.trim() || user
-  const replyTo = process.env.SMTP_REPLY_TO?.trim() || undefined
   const secure = (process.env.SMTP_SECURE || '').trim().toLowerCase() === 'true'
 
   const port = Number(portRaw)
@@ -32,7 +30,7 @@ function getMailConfig(): MailConfig {
     throw new Error('SMTP_PORT must be a valid positive number')
   }
 
-  return { host, port, secure, user, pass, from, replyTo }
+  return { host, port, secure, user, pass, from }
 }
 
 export async function sendReportEmail(args: {
@@ -56,8 +54,6 @@ export async function sendReportEmail(args: {
 
   const info = await transport.sendMail({
     from: config.from,
-    replyTo: config.replyTo,
-    headers: config.replyTo ? { 'Reply-To': config.replyTo } : undefined,
     to: args.to,
     subject: args.subject,
     text: args.text,
@@ -97,8 +93,6 @@ export async function sendPlainEmail(args: {
 
   const info = await transport.sendMail({
     from: config.from,
-    replyTo: config.replyTo,
-    headers: config.replyTo ? { 'Reply-To': config.replyTo } : undefined,
     to: args.to,
     subject: args.subject,
     text: args.text,
