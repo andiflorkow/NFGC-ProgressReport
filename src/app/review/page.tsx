@@ -428,14 +428,13 @@ export default function ReviewPage() {
           <Accordion type="single" collapsible>
             <AccordionItem value="send-history">
               <AccordionTrigger>
-                <span>Show latest send activity</span>
+                <span>Show all send activity</span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-1 text-sm text-muted">
                   {data.reports
                     .flatMap((report) => report.sendHistory.map((send) => ({ report, send })))
                     .sort((a, b) => b.send.sentAt.localeCompare(a.send.sentAt))
-                    .slice(0, 20)
                     .map(({ report, send }) => {
                       const gymnast = data.gymnasts.find((item) => item.id === report.gymnastId)
                       return (
