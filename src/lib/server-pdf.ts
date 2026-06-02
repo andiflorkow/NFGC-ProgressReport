@@ -123,13 +123,15 @@ export async function buildReportPdf(report: Report, gymnast: Gymnast, contactEm
   const sectionGap = 16
   const groupGap = 2
   const spacerToken = '__SPACER__'
+  const firstPageStartY = height - 42
+  const continuationPageStartY = height - 86
 
-  let y = height - 42
+  let y = firstPageStartY
 
   const newPage = async () => {
     page = pdf.addPage([595, 842])
     await drawHeader()
-    y = height - 42
+    y = continuationPageStartY
   }
 
   const measureSectionHeight = (rows: string[], maxWidth: number) => {
