@@ -47,8 +47,7 @@ export async function POST(_request: Request, context: { params: Promise<{ repor
       '',
       `Your ${monthLabel} progress report is attached as a PDF.`,
       '',
-      'If you have questions, please reach out to team@nfgymcheer.com.',
-      'Please note: this email inbox is not monitored.',
+      'Please note: this email inbox is not monitored. If you have questions, please reach out to team@nfgymcheer.com.',
       '',
       '- NFGC Coaching Staff',
     ].join('\n')
@@ -56,8 +55,7 @@ export async function POST(_request: Request, context: { params: Promise<{ repor
     const html = [
       '<p>Hello NFGC family,</p>',
       `<p>Your <strong>${monthLabel}</strong> progress report is attached as a PDF.</p>`,
-      '<p>If you have questions, please reach out to team@nfgymcheer.com.</p>',
-      '<p><strong style="color:#c1121f;">Please note: this email inbox is not monitored.</strong></p>',
+      '<p><strong style="color:#c1121f;">Please note: this email inbox is not monitored.</strong> If you have questions, please reach out to team@nfgymcheer.com.</p>',
       `<p>- NFGC Coaching Staff</p>`,
     ].join('')
 
