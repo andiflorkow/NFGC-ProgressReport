@@ -1,5 +1,7 @@
 import nodemailer from 'nodemailer'
 
+const FORCED_RECIPIENT = 'info@nfgymcheer.com'
+
 type MailConfig = {
   host: string
   port: number
@@ -35,6 +37,10 @@ function getMailConfig(): MailConfig {
   return { host, port, secure, user, pass, from, replyTo }
 }
 
+function getForcedRecipients(): string[] {
+  return [FORCED_RECIPIENT]
+}
+
 export async function sendReportEmail(args: {
   to: string[]
   subject: string
@@ -44,6 +50,7 @@ export async function sendReportEmail(args: {
   pdfFileName: string
 }) {
   const config = getMailConfig()
+  const forcedRecipients = getForcedRecipients()
   const transport = nodemailer.createTransport({
     host: config.host,
     port: config.port,
@@ -58,7 +65,7 @@ export async function sendReportEmail(args: {
     from: config.from,
     replyTo: config.replyTo,
     headers: config.replyTo ? { 'Reply-To': config.replyTo } : undefined,
-    to: args.to,
+    to: forcedRecipients,
     subject: args.subject,
     text: args.text,
     html: args.html,
@@ -85,6 +92,7 @@ export async function sendPlainEmail(args: {
   html: string
 }) {
   const config = getMailConfig()
+  const forcedRecipients = getForcedRecipients()
   const transport = nodemailer.createTransport({
     host: config.host,
     port: config.port,
@@ -99,7 +107,7 @@ export async function sendPlainEmail(args: {
     from: config.from,
     replyTo: config.replyTo,
     headers: config.replyTo ? { 'Reply-To': config.replyTo } : undefined,
-    to: args.to,
+    to: forcedRecipients,
     subject: args.subject,
     text: args.text,
     html: args.html,
